@@ -24,6 +24,13 @@
     version: v3.3.5
   when: not crs_dir.stat.exists
 
+# --- Forcer la suppression de l'ancien fichier ModSecurity ---
+- name: Supprimer l'ancienne configuration ModSecurity s'il existe
+  ansible.builtin.file:
+    path: /etc/nginx/modsecurity.conf
+    state: absent
+  ignore_errors: true
+
 - name: Supprimer la configuration par défaut
   file:
     path: /etc/nginx/sites-enabled/default
@@ -48,12 +55,6 @@
     mode: '0644'
   notify: Restart Nginx
 
-- name: Installer le Core Rule Set (OWASP CRS)
-  ansible.builtin.apt:
-    name: modsecurity-crs
-    state: present
-    update_cache: true
-
 - name: Déployer la configuration Fail2ban pour Nginx
   template:
     src: jail.local.j2
@@ -62,19 +63,6 @@
     group: root
     mode: '0644'
   notify: Restart Fail2ban
-
-# --- Copier le fichier crs-setup.conf.example s'il manque ---
-- name: Vérifier si le fichier crs-setup.conf existe
-  ansible.builtin.stat:
-    path: /usr/share/modsecurity-crs/crs-setup.conf
-  register: crs_conf
-
-- name: Copier le fichier crs-setup.conf.example vers crs-setup.conf
-  ansible.builtin.copy:
-    src: /usr/share/modsecurity-crs/crs-setup.conf.example
-    dest: /usr/share/modsecurity-crs/crs-setup.conf
-    remote_src: true
-  when: not crs_conf.stat.exists
 
 - name: Vérifier la syntaxe de Nginx
   command: nginx -t

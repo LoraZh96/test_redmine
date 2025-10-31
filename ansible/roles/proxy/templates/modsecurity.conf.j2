@@ -1,24 +1,35 @@
-# --- Configuration de ModSecurity ---
+# --- Configuration de ModSecurity v3 ---
 
-SecRuleEngine DetectionOnly
+# Active ou désactive le moteur d’analyse
+SecRuleEngine On
 
+# Accès au corps des requêtes (nécessaire pour l’analyse)
 SecRequestBodyAccess On
+
+# Accès au corps des réponses (souvent inutile pour un proxy)
 SecResponseBodyAccess Off
+
+# Types MIME à analyser
 SecResponseBodyMimeType text/plain text/html text/xml
 
 # Taille max des requêtes (20 Mo)
 SecRequestBodyLimit 20971520
 SecRequestBodyNoFilesLimit 1048576
-SecRequestBodyInMemoryLimit 131072
 
-# Journalisation
+# --- ATTENTION ---
+# La directive SecRequestBodyInMemoryLimit a été supprimée à partir de ModSecurity v3
+# Nginx gère désormais cette limite automatiquement.
+
+# --- Journalisation ---
 SecAuditEngine RelevantOnly
 SecAuditLogParts ABIJDEFHZ
 SecAuditLogType Serial
 SecAuditLog /var/log/modsecurity/audit.log
 SecAuditLogStorageDir /var/log/modsecurity/audit/
 
-# Activation du Core Rule Set (OWASP CRS)
-IncludeOptional /usr/share/modsecurity-crs/*.conf
-IncludeOptional /usr/share/modsecurity-crs/rules/*.conf
+# Fichier principal de configuration CRS
+Include /usr/share/modsecurity-crs/crs-setup.conf.example
 
+# Tous les fichiers de règles du CRS
+Include /usr/share/modsecurity-crs/crs-setup.conf
+Include /usr/share/modsecurity-crs/rules/*.conf
