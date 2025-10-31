@@ -3,7 +3,7 @@
   apt:
     name:
       - nginx
-      - libnginx-mod-security
+    #  - libnginx-mod-security
       - fail2ban
       - curl
       - vim
@@ -25,20 +25,20 @@
     state: absent
   notify: Restart Nginx
 
-- name: Vérifier la syntaxe de Nginx
-  command: nginx -t
-  register: nginx_test
-  changed_when: false
-  failed_when: nginx_test.rc != 0
+#- name: Vérifier la syntaxe de Nginx
+#  command: nginx -t
+#  register: nginx_test
+#  changed_when: false
+#  failed_when: nginx_test.rc != 0
 
-- name: Déployer la configuration ModSecurity
-  template:
-    src: modsecurity.conf.j2
-    dest: /etc/modsecurity/modsecurity.conf
-    owner: root
-    group: root
-    mode: '0644'
-  notify: Restart Nginx
+#- name: Déployer la configuration ModSecurity
+#  template:
+#    src: modsecurity.conf.j2
+#    dest: /etc/modsecurity/modsecurity.conf
+#    owner: root
+#    group: root
+#    mode: '0644'
+#  notify: Restart Nginx
 
 - name: Déployer la configuration Fail2ban pour Nginx
   template:

@@ -1,2 +1,4 @@
 ---
 node_exporter_version: "1.8.1"
+node_exporter_user: "exporter"
+node_exporter_bin_path: "/usr/local/bin/node_exporter"

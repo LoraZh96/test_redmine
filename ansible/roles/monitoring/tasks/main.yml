@@ -13,7 +13,7 @@
     dest: /opt/monitoring/prometheus.yml
     mode: '0644'
 
-- name: Copier les règles d’alertes Prometheus
+- name: Copier les règles d'alertes Prometheus
   template:
     src: alert.rules.yml.j2
     dest: /opt/monitoring/alert.rules.yml
