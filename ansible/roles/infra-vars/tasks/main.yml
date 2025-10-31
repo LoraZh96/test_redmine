@@ -1,53 +1,34 @@
 ---
-# Rôle infra-vars — charge les variables Terraform et génère un inventaire Ansible
-- name: Vérifier que le fichier terraform.tfstate existe
-  stat:
-    path: "{{ playbook_dir }}/../terraform/terraform.tfstate"
-  register: tfstate_file
+# Rôle infra-vars — charge les variables depuis .env (moderne, sans read_env)
 
-- name: Charger les outputs Terraform (IPs, endpoints, etc.)
-  command: terraform output -json
-  args:
-    chdir: "{{ playbook_dir }}/../terraform"
-  register: terraform_output
-  when: tfstate_file.stat.exists
+- name: Vérifier que le fichier .env existe
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../.env"
+  register: env_file
   changed_when: false
 
-- name: Enregistrer les outputs dans une variable
-  set_fact:
-    terraform_outputs: "{{ terraform_output.stdout | from_json }}"
-  when: tfstate_file.stat.exists
+# Lire et convertir le contenu du fichier .env en dictionnaire
+- name: Charger les variables depuis .env
+  when: env_file.stat.exists | default(false)
+  ansible.builtin.set_fact:
+    env_data: >-
+      {{
+        ('[env]\n' + lookup('file', playbook_dir + '/../../.env'))
+        | community.general.from_ini
+      }}
 
-- name: Lire le contenu du fichier terraform.tfstate
-  slurp:
-    src: "{{ playbook_dir }}/../terraform/terraform.tfstate"
-  register: tfstate_raw
-  when: tfstate_file.stat.exists
-  changed_when: false
-
-- name: Parser le fichier tfstate en JSON
-  set_fact:
-    tfstate_data: "{{ tfstate_raw.content | b64decode | from_json }}"
-  when: tfstate_file.stat.exists
-
-- name: Extraire les identifiants RDS
+# Définir les variables Redmine DB à partir du contenu .env
+- name: Définir les variables Redmine DB à partir du .env
+  when: env_file.stat.exists | default(false)
   no_log: true
-  set_fact:
-    db_username: >-
-      {{ tfstate_data.resources
-         | selectattr('type', 'equalto', 'aws_db_instance')
-         | map(attribute='instances') | first | first
-         | json_query('attributes.username') | default('') }}
-    db_password: >-
-      {{ tfstate_data.resources
-         | selectattr('type', 'equalto', 'aws_db_instance')
-         | map(attribute='instances') | first | first
-         | json_query('attributes.password') | default('') }}
-  when: tfstate_file.stat.exists
+  ansible.builtin.set_fact:
+    redmine_db_host: "{{ env_data.env.REDMINE_DB_POSTGRES | default('') }}"
+    redmine_db_user: "{{ env_data.env.REDMINE_DB_USERNAME | default('') }}"
+    redmine_db_password: "{{ env_data.env.REDMINE_DB_PASSWORD | default('') }}"
+    redmine_db_port: "{{ env_data.env.REDMINE_DB_PORT | default('5432') }}"
+    redmine_db_database: "{{ env_data.env.REDMINE_DB_DATABASE | default('postgres') }}"
+    redmine_db_encoding: "{{ env_data.env.REDMINE_DB_ENCODING | default('utf8') }}"
+    redmine_db_sslmode: "{{ env_data.env.REDMINE_DB_SSLMODE | default('require') }}"
 
-- name: Afficher les variables chargées (sans secrets)
-  debug:
-    msg:
-      - "Terraform outputs chargés : {{ terraform_outputs.keys() | list }}"
-  when: tfstate_file.stat.exists
+# Afficher les variables ch
 
