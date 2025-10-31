@@ -1,0 +1,60 @@
+---
+# ==============================================================
+# PLAYBOOK GLOBAL — déploiement complet de l’infrastructure
+# ==============================================================
+
+- name: Charger les variables depuis Terraform
+  hosts: localhost
+  become: false
+  gather_facts: false
+  roles:
+    - infra-vars
+
+
+# ==============================================================
+# Configuration des serveurs
+# ==============================================================
+
+- name: Configurer le bastion
+  hosts: bastion
+  become: true
+  vars_files:
+    - group_vars/bastion.yml
+  roles:
+    - bastion
+
+- name: Configurer le proxy (Nginx + WAF + Fail2ban)
+  hosts: proxy
+  become: true
+  roles:
+    - proxy
+
+- name: Installer Docker sur tous les nœuds
+  hosts: manager,workers,monitoring
+  become: true
+  roles:
+    - docker
+
+- name: Initialiser le cluster Docker Swarm
+  hosts: manager,workers
+  become: true
+  roles:
+    - docker-swarm
+
+- name: Déployer Node Exporter sur tous les serveurs
+  hosts: all
+  become: true
+  roles:
+    - node-exporter
+
+- name: Déployer le monitoring (Prometheus + Grafana + Alertmanager)
+  hosts: monitoring
+  become: true
+  roles:
+    - monitoring
+
+- name: Déployer Redmine (application + secrets + stack Docker)
+  hosts: manager
+  become: true
+  roles:
+    - redmine-app

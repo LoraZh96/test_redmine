@@ -1,0 +1,27 @@
+[nginx-http-auth]
+enabled  = true
+filter   = nginx-http-auth
+action   = iptables[name=HTTP, port=http, protocol=tcp]
+logpath  = /var/log/nginx/error.log
+maxretry = {{ fail2ban_maxretry }}
+bantime  = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+
+[nginx-botsearch]
+enabled  = true
+filter   = nginx-botsearch
+action   = iptables[name=BotSearch, port=http, protocol=tcp]
+logpath  = /var/log/nginx/access.log
+maxretry = {{ fail2ban_maxretry }}
+bantime  = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+
+[nginx-noscript]
+enabled  = true
+filter   = nginx-noscript
+action   = iptables[name=NoScript, port=http, protocol=tcp]
+logpath  = /var/log/nginx/access.log
+maxretry = {{ fail2ban_maxretry }}
+bantime  = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+

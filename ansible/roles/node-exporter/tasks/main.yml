@@ -1,0 +1,48 @@
+---
+- name: Créer l’utilisateur node_exporter s’il n’existe pas
+  user:
+    name: node_exporter
+    shell: /usr/sbin/nologin
+    create_home: no
+    system: yes
+
+- name: Vérifier si Node Exporter est déjà installé
+  stat:
+    path: /usr/local/bin/node_exporter
+  register: node_exporter_binary
+
+- name: Télécharger Node Exporter si absent
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: /tmp/node_exporter.tar.gz
+  when: not node_exporter_binary.stat.exists
+
+- name: Extraire Node Exporter
+  unarchive:
+    src: /tmp/node_exporter.tar.gz
+    dest: /usr/local/bin/
+    remote_src: yes
+    extra_opts: [--strip-components=1]
+  when: not node_exporter_binary.stat.exists
+
+- name: Créer l'utilisateur node_exporter s'il n'existe pas
+  user:
+    name: "{{ node_exporter_user }}"
+    shell: /usr/sbin/nologin
+    create_home: no
+    system: yes
+
+- name: Déployer le service systemd pour Node Exporter
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Activer et démarrer Node Exporter
+  systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+

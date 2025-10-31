@@ -1,0 +1,22 @@
+[Unit]
+Description=cAdvisor - Container Advisor
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+ExecStart=/usr/bin/docker run \
+  --volume=/:/rootfs:ro \
+  --volume=/var/run:/var/run:rw \
+  --volume=/sys:/sys:ro \
+  --volume=/var/lib/docker/:/var/lib/docker:ro \
+  --volume=/dev/disk/:/dev/disk:ro \
+  --publish=8080:8080 \
+  --detach=true \
+  --name=cadvisor \
+  --rm \
+  gcr.io/cadvisor/cadvisor:latest
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+

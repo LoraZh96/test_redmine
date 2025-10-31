@@ -1,0 +1,18 @@
+global:
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'abdddlara@gmail.com'
+  smtp_auth_username: 'abdddlara@gmail.com'
+  smtp_auth_password: '{{ smtp_password }}'   # ← Ansible Vault
+
+route:
+  receiver: 'self'
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+receivers:
+  - name: 'self'
+    email_configs:
+      - to: 'abdddlara@gmail.com'
+        send_resolved: true
+

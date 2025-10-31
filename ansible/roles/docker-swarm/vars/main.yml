@@ -1,0 +1,4 @@
+---
+swarm_overlay_network: "app_net"
+swarm_stacks:
+  - redmine

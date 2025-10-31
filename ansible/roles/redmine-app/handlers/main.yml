@@ -1,0 +1,8 @@
+- name: Restart redmine stack
+  shell: |
+    docker stack rm redmine
+    sleep 10
+    docker stack deploy -c {{ redmine_dir }}/docker-compose.yml redmine
+  args:
+    chdir: "{{ redmine_dir }}"
+

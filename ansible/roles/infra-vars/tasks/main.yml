@@ -1,0 +1,53 @@
+---
+# Rôle infra-vars — charge les variables Terraform et génère un inventaire Ansible
+- name: Vérifier que le fichier terraform.tfstate existe
+  stat:
+    path: "{{ playbook_dir }}/../terraform/terraform.tfstate"
+  register: tfstate_file
+
+- name: Charger les outputs Terraform (IPs, endpoints, etc.)
+  command: terraform output -json
+  args:
+    chdir: "{{ playbook_dir }}/../terraform"
+  register: terraform_output
+  when: tfstate_file.stat.exists
+  changed_when: false
+
+- name: Enregistrer les outputs dans une variable
+  set_fact:
+    terraform_outputs: "{{ terraform_output.stdout | from_json }}"
+  when: tfstate_file.stat.exists
+
+- name: Lire le contenu du fichier terraform.tfstate
+  slurp:
+    src: "{{ playbook_dir }}/../terraform/terraform.tfstate"
+  register: tfstate_raw
+  when: tfstate_file.stat.exists
+  changed_when: false
+
+- name: Parser le fichier tfstate en JSON
+  set_fact:
+    tfstate_data: "{{ tfstate_raw.content | b64decode | from_json }}"
+  when: tfstate_file.stat.exists
+
+- name: Extraire les identifiants RDS
+  no_log: true
+  set_fact:
+    db_username: >-
+      {{ tfstate_data.resources
+         | selectattr('type', 'equalto', 'aws_db_instance')
+         | map(attribute='instances') | first | first
+         | json_query('attributes.username') | default('') }}
+    db_password: >-
+      {{ tfstate_data.resources
+         | selectattr('type', 'equalto', 'aws_db_instance')
+         | map(attribute='instances') | first | first
+         | json_query('attributes.password') | default('') }}
+  when: tfstate_file.stat.exists
+
+- name: Afficher les variables chargées (sans secrets)
+  debug:
+    msg:
+      - "Terraform outputs chargés : {{ terraform_outputs.keys() | list }}"
+  when: tfstate_file.stat.exists
+

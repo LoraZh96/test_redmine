@@ -1,0 +1,51 @@
+---
+- name: Installer Nginx, ModSecurity et utilitaires
+  apt:
+    name:
+      - nginx
+      - libnginx-mod-security
+      - fail2ban
+      - curl
+      - vim
+    state: present
+    update_cache: yes
+
+- name: Déployer la configuration principale de Nginx
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Nginx
+
+- name: Supprimer la configuration par défaut
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Restart Nginx
+
+- name: Vérifier la syntaxe de Nginx
+  command: nginx -t
+  register: nginx_test
+  changed_when: false
+  failed_when: nginx_test.rc != 0
+
+- name: Déployer la configuration ModSecurity
+  template:
+    src: modsecurity.conf.j2
+    dest: /etc/modsecurity/modsecurity.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Nginx
+
+- name: Déployer la configuration Fail2ban pour Nginx
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Fail2ban
+

@@ -1,0 +1,25 @@
+---
+# Variables pour la configuration du serveur proxy
+
+# Configuration Fail2ban
+fail2ban_maxretry: 3        # nombre d'échecs avant bannissement
+fail2ban_bantime: 3600      # durée du bannissement (en secondes)
+fail2ban_findtime: 600      # fenêtre de temps pour détecter les échecs
+
+# Emplacement des fichiers de configuration
+nginx_conf_path: /etc/nginx/nginx.conf
+modsecurity_conf_path: /etc/modsecurity/modsecurity.conf
+fail2ban_conf_path: /etc/fail2ban/jail.local
+
+# Logs (utile si besoin de centralisation plus tard)
+nginx_access_log: /var/log/nginx/access.log
+nginx_error_log: /var/log/nginx/error.log
+
+# Proxy cible (Redmine derrière le reverse proxy)
+# Cette variable permet d’adapter dynamiquement l’upstream
+redmine_backend_host: "{{ terraform_outputs.manager_ip.value | default('127.0.0.1') }}"
+redmine_backend_port: 3000
+
+# Activer ou désactiver ModSecurity (utile pour debug)
+modsecurity_enabled: true
+

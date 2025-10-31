@@ -1,0 +1,55 @@
+---
+- name: Vérifier si le nœud est déjà dans un cluster Swarm
+  command: docker info --format '{{.Swarm.LocalNodeState}}'
+  register: swarm_status
+  failed_when: false
+  changed_when: false
+
+- name: Initialiser le Swarm sur le manager
+  command: docker swarm init --advertise-addr {{ ansible_host }}
+  when:
+   - "'active' not in swarm_status.stdout"
+   - inventory_hostname == groups['manager'][0]
+  register: swarm_init
+  failed_when: false
+  changed_when: "'Swarm initialized' in swarm_init.stdout"
+
+- name: Récupérer le token d’adhésion des workers
+  command: docker swarm join-token -q worker
+  register: worker_token
+  when: inventory_hostname == groups['manager'][0]
+  changed_when: false
+
+- name: Joindre les workers au cluster
+  command: docker swarm join --token {{ hostvars[groups['manager'][0]].worker_token.stdout }} {{ hostvars[groups['manager'][0]].ansible_host }}:2377
+  when:
+    - "'active' not in swarm_status.stdout"
+    - inventory_hostname != groups['manager'][0]
+  failed_when: false
+
+- name: Créer le réseau overlay pour les services
+  community.docker.docker_network:
+    name: app_net
+    driver: overlay
+    attachable: true
+  when: inventory_hostname == groups['manager'][0]
+
+- name: Récupérer le token d'adhésion des workers
+  command: docker swarm join-token -q worker
+  register: worker_token
+  when: inventory_hostname == groups['manager'][0]
+  changed_when: false
+
+
+- name: Installer cAdvisor pour la supervision Docker
+  template:
+    src: cAdvisor.service.j2
+    dest: /etc/systemd/system/cadvisor.service
+    mode: '0644'
+
+- name: Activer et démarrer cAdvisor
+  systemd:
+    name: cadvisor
+    state: started
+    enabled: true
+

@@ -1,0 +1,8 @@
+# modifiez le chemin d'acces et nom de votre cle avant d'executer
+ansible_user: appadmin
+ansible_port: 4242
+ansible_ssh_private_key_file: ~/.ssh/ssh-redmine
+ansible_ssh_common_args: >
+  -o StrictHostKeyChecking=no
+  -o ProxyCommand="ssh -i {{ ansible_ssh_private_key_file }} -W %h:%p -q bastion@{{ hostvars["bastion"].ansible_host }} -p 4242"
+

@@ -1,0 +1,11 @@
+- name: Restart Fail2ban
+  systemd:
+    name: fail2ban
+    state: restarted
+    enabled: true
+
+- name: Restart Nginx
+  systemd:
+    name: nginx
+    state: restarted
+    enabled: true

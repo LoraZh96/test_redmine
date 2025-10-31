@@ -1,0 +1,57 @@
+version: "3.9"
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitor_net
+
+  cloudwatch-exporter:
+    image: prometheus/cloudwatch-exporter:latest
+    container_name: cloudwatch-exporter
+    environment:
+      AWS_REGION: eu-west-3
+      AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('') }}"
+      AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('') }}"
+    ports:
+      - "9106:9106"
+    networks:
+      - monitor_net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      #datasource
+      - /opt/monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+    depends_on:
+    depends_on:
+      - prometheus
+    networks:
+      - monitor_net
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - /opt/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    networks:
+      - monitor_net
+
+
+networks:
+  monitor_net:
+    driver: bridge
+

@@ -1,0 +1,21 @@
+groups:
+  - name: instance-health
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} est down"
+          description: "Le node_exporter ne répond plus depuis 2 minutes"
+
+      - alert: DatabaseUnavailable
+        expr: aws_rds_free_storage_space_average < 1000000000
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Espace disque faible pour RDS"
+          description: "L'instance RDS a moins de 1 Go d’espace libre"
+

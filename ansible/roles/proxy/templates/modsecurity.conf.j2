@@ -1,0 +1,24 @@
+# --- Configuration de ModSecurity ---
+
+SecRuleEngine DetectionOnly
+
+SecRequestBodyAccess On
+SecResponseBodyAccess Off
+SecResponseBodyMimeType text/plain text/html text/xml
+
+# Taille max des requêtes (20 Mo)
+SecRequestBodyLimit 20971520
+SecRequestBodyNoFilesLimit 1048576
+SecRequestBodyInMemoryLimit 131072
+
+# Journalisation
+SecAuditEngine RelevantOnly
+SecAuditLogParts ABIJDEFHZ
+SecAuditLogType Serial
+SecAuditLog /var/log/modsecurity/audit.log
+SecAuditLogStorageDir /var/log/modsecurity/audit/
+
+# Activation du Core Rule Set (OWASP CRS)
+IncludeOptional /usr/share/modsecurity-crs/*.conf
+IncludeOptional /usr/share/modsecurity-crs/rules/*.conf
+

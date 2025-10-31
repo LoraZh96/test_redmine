@@ -1,0 +1,77 @@
+---
+- name: Créer le répertoire de monitoring
+  file:
+    path: /opt/monitoring
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copier la configuration Prometheus
+  template:
+    src: prometheus.yml.j2
+    dest: /opt/monitoring/prometheus.yml
+    mode: '0644'
+
+- name: Copier les règles d’alertes Prometheus
+  template:
+    src: alert.rules.yml.j2
+    dest: /opt/monitoring/alert.rules.yml
+    mode: '0644'
+
+- name: Copier la configuration Grafana datasource
+  template:
+    src: grafana-datasource.yml.j2
+    dest: /opt/monitoring/grafana-datasource.yml
+    mode: '0644'
+
+
+- name: Copier la configuration Alertmanager
+  template:
+    src: alertmanager.yml.j2
+    dest: /opt/monitoring/alertmanager.yml
+    mode: '0644'
+
+- name: Copier les règles d'alertes Prometheus
+  template:
+    src: alert.rules.yml.j2
+    dest: /opt/monitoring/alert.rules.yml
+    mode: '0644'
+
+- name: Copier la configuration Docker Compose du monitoring
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/monitoring/docker-compose.yml
+    mode: '0644'
+
+- name: Lancer le stack de monitoring
+  shell: docker compose -f /opt/monitoring/docker-compose.yml up -d
+  args:
+    chdir: /opt/monitoring
+
+- name: Vérifier que Prometheus fonctionne
+  uri:
+    url: "http://localhost:9090/-/healthy"
+    method: GET
+    status_code: 200
+  register: prometheus_health
+  retries: 5
+  delay: 5
+  until: prometheus_health.status == 200
+
+- name: Vérifier que Grafana fonctionne
+  uri:
+    url: "http://localhost:3000/login"
+    method: GET
+    status_code: 200
+  register: grafana_health
+  retries: 5
+  delay: 5
+  until: grafana_health.status == 200
+
+- name: Afficher les URLs d'accès
+  debug:
+    msg:
+      - " Prometheus disponible sur http://{{ terraform_outputs.monitoring_ip.value }}:9090"
+      - " Grafana disponible sur http://{{ terraform_outputs.monitoring_ip.value }}:3000 (admin / admin)"
+      - " Alertmanager disponible sur http://{{ terraform_outputs.monitoring_ip.value }}:9093"
