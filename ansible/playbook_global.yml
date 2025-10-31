@@ -41,11 +41,11 @@
   roles:
     - docker-swarm
 
-- name: Déployer Node Exporter sur tous les serveurs
-  hosts: all
+- name: Déployer Redmine (application + secrets + stack Docker)
+  hosts: manager
   become: true
   roles:
-    - node-exporter
+    - redmine-app
 
 - name: Déployer le monitoring (Prometheus + Grafana + Alertmanager)
   hosts: monitoring
@@ -53,8 +53,8 @@
   roles:
     - monitoring
 
-- name: Déployer Redmine (application + secrets + stack Docker)
-  hosts: manager
+- name: Déployer Node Exporter sur tous les serveurs
+  hosts: all
   become: true
   roles:
-    - redmine-app
+    - node-exporter

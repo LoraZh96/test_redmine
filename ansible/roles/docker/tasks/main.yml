@@ -44,5 +44,5 @@
     name: appadmin
     groups: docker
     append: yes
-  when: "'deploy' in ansible_facts.get('users', []) | default([])"
+  #when: "'deploy' in ansible_facts.get('users', []) | default([])"
 

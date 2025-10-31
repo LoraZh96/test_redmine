@@ -1,5 +1,5 @@
 ---
-- name: Créer l’utilisateur node_exporter s’il n’existe pas
+- name: Créer l'utilisateur node_exporter s'il n'existe pas
   user:
     name: node_exporter
     shell: /usr/sbin/nologin
