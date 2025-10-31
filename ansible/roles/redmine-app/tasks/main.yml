@@ -23,11 +23,17 @@
     owner: root
     group: root
     mode: '0644'
-    exclude:
-      - ".git"
-      - "readme"
-      - "README.md"
-      - "docker-compose.yml"
+    
+#- name: suppression des fichiers
+#  file:
+#    path: "{{ redmine_dir }}/{{ item }}"
+#    state: absent
+#    loop:
+#      - ".git"
+#      - "readme"
+#      - "README.md"
+#      - "docker-compose.yml"
+#    ignore_errors: yes
 
 - name: Créer les secrets Docker Swarm à partir des sorties Terraform
   shell: |
@@ -35,22 +41,22 @@
       if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^$secret$"; then
         case "$secret" in
           REDMINE_DB_POSTGRES)
-            echo "{{ terraform_outputs.rds_endpoint.value }}" | docker secret create $secret -
+            echo "{{ env_data.env.REDMINE_DB_POSTGRES }}" | docker secret create $secret -
             ;;
           REDMINE_DB_PORT)
-            echo "{{ terraform_outputs.db_port.value | default('5432') }}" | docker secret create $secret -
+            echo "{{ env_data.env.REDMINE_DB_PORT.value | default('5432') }}" | docker secret create $secret -
             ;;
           REDMINE_DB_USERNAME)
-            echo "{{ db_username }}" | docker secret create $secret -
+            echo "{{ env_data.env.REDMINE_DB_USERNAME }}" | docker secret create $secret -
             ;;
           REDMINE_DB_PASSWORD)
-            echo "{{ db_password }}" | docker secret create $secret -
+            echo "{{ env_data.env.REDMINE_DB_PASSWORD }}" | docker secret create $secret -
             ;;
           REDMINE_DB_DATABASE)
-            echo "{{ terraform_outputs.db_name.value | default('redmine') }}" | docker secret create $secret -
+            echo "{{ env_data.env.REDMINE_DB_DATABASE.value | default('redmine') }}" | docker secret create $secret -
             ;;
           REDMINE_DB_ENCODING)
-            echo "{{ terraform_outputs.db_encoding.value | default('utf8') }}" | docker secret create $secret -
+            echo "{{ env_data.env.REDMINE_DB_ENCODING | default('utf8') }}" | docker secret create $secret -
             ;;
           REDMINE_SECRET_KEY_BASE)
             openssl rand -hex 64 | docker secret create $secret -

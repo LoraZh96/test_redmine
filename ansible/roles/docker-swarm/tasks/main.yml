@@ -1,12 +1,15 @@
 ---
 - name: Vérifier si le nœud est déjà dans un cluster Swarm
-  command: docker info --format '{{.Swarm.LocalNodeState}}'
+  command: docker info --format '{%raw%}{{.Swarm.LocalNodeState}}{%endraw%}'
   register: swarm_status
-  failed_when: false
   changed_when: false
+  failed_when: false
+  
 
 - name: Initialiser le Swarm sur le manager
-  command: docker swarm init --advertise-addr {{ ansible_host }}
+  command: >
+    docker swarm init
+    --advertise-addr {{ ansible_host }}
   when:
    - "'active' not in swarm_status.stdout"
    - inventory_hostname == groups['manager'][0]
@@ -14,7 +17,7 @@
   failed_when: false
   changed_when: "'Swarm initialized' in swarm_init.stdout"
 
-- name: Récupérer le token d’adhésion des workers
+- name: Récupérer le token d'adhésion des workers
   command: docker swarm join-token -q worker
   register: worker_token
   when: inventory_hostname == groups['manager'][0]
