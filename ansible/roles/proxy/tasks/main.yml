@@ -3,9 +3,8 @@
   ansible.builtin.apt:
     name:
       - nginx
-<<<<<<< HEAD
-      - libnginx-mod-http-modsecurity   #  nouveau nom du module
-      - libmodsecurity3                 #  moteur ModSecurity v3
+      - libnginx-mod-http-modsecurity   # nouveau nom du module
+      - libmodsecurity3                 # moteur ModSecurity v3
       - fail2ban
       - curl
       - git
@@ -40,7 +39,6 @@
     mode: '0644'
   notify: Restart Nginx
 
-<<<<<<< HEAD
 - name: Déployer la configuration ModSecurity
   template:
     src: modsecurity.conf.j2
@@ -76,10 +74,5 @@
     src: /usr/share/modsecurity-crs/crs-setup.conf.example
     dest: /usr/share/modsecurity-crs/crs-setup.conf
     remote_src: true
-  when: not crs_conf.stat.exists
+  when: not crs_conf.stat.exist_
 
-- name: Vérifier la syntaxe de Nginx
-  command: nginx -t
-  register: nginx_test
-  changed_when: false
-  failed_when: nginx_test.rc != 0
