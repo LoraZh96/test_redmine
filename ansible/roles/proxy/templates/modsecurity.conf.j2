@@ -1,24 +1,26 @@
-# --- Configuration de ModSecurity ---
+# --- ModSecurity v3 core configuration ---
+SecRuleEngine On
 
-SecRuleEngine DetectionOnly
-
+# Request/Response body access
 SecRequestBodyAccess On
 SecResponseBodyAccess Off
-SecResponseBodyMimeType text/plain text/html text/xml
-
-# Taille max des requêtes (20 Mo)
+SecResponseBodyLimit 524288
 SecRequestBodyLimit 20971520
 SecRequestBodyNoFilesLimit 1048576
-SecRequestBodyInMemoryLimit 131072
 
-# Journalisation
+# Audit log
 SecAuditEngine RelevantOnly
 SecAuditLogParts ABIJDEFHZ
 SecAuditLogType Serial
 SecAuditLog /var/log/modsecurity/audit.log
-SecAuditLogStorageDir /var/log/modsecurity/audit/
+SecAuditLogStorageDir /var/log/modsecurity/audit
 
-# Activation du Core Rule Set (OWASP CRS)
-IncludeOptional /usr/share/modsecurity-crs/*.conf
-IncludeOptional /usr/share/modsecurity-crs/rules/*.conf
+# Logs/Debug 
+SecDebugLogLevel 0
+# SecDebugLog /var/log/modsecurity/debug.log
+
+# Sensible defaults
+SecPcreMatchLimit 100000
+SecPcreMatchLimitRecursion 100000
+SecRuleRemoveById 999999  # placeholder
 

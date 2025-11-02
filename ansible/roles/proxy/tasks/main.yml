@@ -1,51 +1,135 @@
 ---
-- name: Installer Nginx, ModSecurity et utilitaires
-  apt:
+- name: Install Nginx, ModSecurity v3, Fail2ban and tools
+  ansible.builtin.apt:
     name:
       - nginx
-    #  - libnginx-mod-security
-      - fail2ban
+      - libmodsecurity3
+      - libnginx-mod-http-modsecurity
+      - git
       - curl
-      - vim
+      - fail2ban
     state: present
-    update_cache: yes
+    update_cache: true
 
-- name: Déployer la configuration principale de Nginx
-  template:
-    src: nginx.conf.j2
-    dest: /etc/nginx/nginx.conf
+- name: Supprimer l’ancien dossier CRS s’il existe
+  ansible.builtin.file:
+    path: /etc/modsecurity/crs
+    state: absent
+
+- name: Cloner la dernière version du CRS
+  ansible.builtin.git:
+    repo: https://github.com/coreruleset/coreruleset.git
+    dest: /etc/modsecurity/crs
+    version: "{{ crs_version }}"
+
+# dir pour conf && logs
+- name: Create ModSecurity and Nginx modsec dirs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
     owner: root
     group: root
-    mode: '0644'
+    mode: "0755"
+  loop:
+    - /etc/modsecurity
+    - /etc/nginx/modsec
+    - /var/log/modsecurity
+    - /etc/modsecurity/crs
+
+- name: Ensure ModSecurity log storage dir exists
+  ansible.builtin.file:
+    path: /var/log/modsecurity/audit
+    state: directory
+    owner: root
+    group: adm
+    mode: "0750"
+
+# modsecurity.conf
+- name: Copy modsecurity.conf (template)
+  ansible.builtin.template:
+    src: modsecurity.conf.j2
+    dest: /etc/modsecurity/modsecurity.conf
+    owner: root
+    group: root
+    mode: "0644"
   notify: Restart Nginx
 
-- name: Supprimer la configuration par défaut
-  file:
+# OWASP CRS (GitHub)
+- name: Check if CRS rules exist
+  ansible.builtin.stat:
+    path: /etc/modsecurity/crs/rules
+  register: crs_rules_dir
+
+- name: Fetch OWASP CRS from GitHub
+  ansible.builtin.git:
+    repo: https://github.com/coreruleset/coreruleset.git
+    dest: /etc/modsecurity/crs
+    version: "{{ crs_version }}"
+  when: not crs_rules_dir.stat.exists
+
+- name: Ensure crs-setup.conf present (copy example -> active)
+  ansible.builtin.copy:
+    src: /etc/modsecurity/crs/crs-setup.conf.example
+    dest: /etc/modsecurity/crs/crs-setup.conf
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+
+# Deploy include for nginx (regles CRS + core conf)
+- name: Deploy modsec main include for Nginx
+  ansible.builtin.template:
+    src: modsec-main.conf.j2
+    dest: /etc/nginx/modsec/main.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Nginx
+
+# Remove default nginx
+- name: Remove default site symlink if present
+  ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
   notify: Restart Nginx
 
-#- name: Vérifier la syntaxe de Nginx
-#  command: nginx -t
-#  register: nginx_test
-#  changed_when: false
-#  failed_when: nginx_test.rc != 0
+# Deploy nginx.conf && WAF
+- name: Deploy nginx.conf (with ModSecurity)
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Nginx
 
-#- name: Déployer la configuration ModSecurity
-#  template:
-#    src: modsecurity.conf.j2
-#    dest: /etc/modsecurity/modsecurity.conf
-#    owner: root
-#    group: root
-#    mode: '0644'
-#  notify: Restart Nginx
-
-- name: Déployer la configuration Fail2ban pour Nginx
-  template:
+# Fail2ban config
+- name: Deploy fail2ban jail.local for nginx
+  ansible.builtin.template:
     src: jail.local.j2
     dest: /etc/fail2ban/jail.local
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify: Restart Fail2ban
+
+# test config Nginx
+- name: Test nginx configuration
+  ansible.builtin.command: nginx -t
+  register: nginx_test
+  changed_when: false
+  failed_when: nginx_test.rc != 0
+
+# Restart si handlers ne pas marche
+- name: Ensure nginx is running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Ensure fail2ban is running
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
 
