@@ -56,6 +56,10 @@ jobs:
         with:
           terraform_version: 1.5.7
 
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+        working-directory: ${{ env.TF_WORKDIR }}
+
       - name: Configure Terraform Cloud backend
         if: ${{ env.TF_API_TOKEN != '' && env.TF_ORG != '' && env.TF_WORKSPACE != '' }}
         run: |
@@ -71,10 +75,6 @@ jobs:
             }
           }
           BACKEND
-        working-directory: ${{ env.TF_WORKDIR }}
-
-      - name: Terraform fmt check
-        run: terraform fmt -check -recursive
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform init
