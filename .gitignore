@@ -1,3 +1,5 @@
 .env
 ansible/group_vars/bastion.yml
 ansible/group_vars/jump.yml
+ansible/group_vars/bastion.yml
+ansible/group_vars/jump.yml
