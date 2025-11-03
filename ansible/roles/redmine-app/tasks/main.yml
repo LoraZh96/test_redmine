@@ -7,7 +7,7 @@
   changed_when: false
   delegate_to: localhost
 
-# Lire et convertir le contenu du fichier .env en dictionnaire
+# Charger les variables depuis .env (depuis le contrôleur local)
 - name: Charger les variables depuis .env
   become: false
   when: env_file.stat.exists | default(false)
