@@ -23,5 +23,14 @@ jobs:
           token: ${{ secrets.APP_REPO_PAT }}
           path: app-repo
 
+      - name: Prepare Redmine artifacts for Ansible
+        run: |
+          set -euo pipefail
+          rm -rf ansible/redmine
+          mkdir -p ansible/redmine/docker
+          cp app-repo/deploy/docker-compose.yml ansible/redmine/docker-compose.yml
+          cp app-repo/Dockerfile ansible/redmine/Dockerfile
+          cp -r app-repo/docker/. ansible/redmine/docker/
+
       - name: Placeholder deploy step
         run: echo "Add Ansible deployment steps here"
