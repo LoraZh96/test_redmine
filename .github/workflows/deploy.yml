@@ -66,15 +66,17 @@ jobs:
           cat <<'BACKEND' > backend.tf
           terraform {
             backend "remote" {
-              hostname     = "app.terraform.io"
-              organization = "${TF_ORG}"
+              hostname = "app.terraform.io"
+              organization = "ORG_PLACEHOLDER"
 
               workspaces {
-                name = "${TF_WORKSPACE}"
+                name = "WORKSPACE_PLACEHOLDER"
               }
             }
           }
           BACKEND
+          sed -i "s/ORG_PLACEHOLDER/${TF_ORG}/" backend.tf
+          sed -i "s/WORKSPACE_PLACEHOLDER/${TF_WORKSPACE}/" backend.tf
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform init
