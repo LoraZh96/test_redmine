@@ -1,4 +1,4 @@
 redmine_dir: /var/lib/redmine
-redmine_compose_src: "{{ playbook_dir }}/../redmine/docker-compose.yml"
-redmine_files_src: "{{ playbook_dir }}/../redmine/"
-env_data: "{{ playbook_dir }}/../../infra-vars/tasks/"
+redmine_compose_src: "{{ playbook_dir }}/../app-repo/deploy/docker-compose.yml"
+redmine_files_src: "{{ playbook_dir }}/../app-repo/"
+#env_data: "{{ playbook_dir }}/../../infra-vars/tasks/"
