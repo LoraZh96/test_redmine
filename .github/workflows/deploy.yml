@@ -1,0 +1,27 @@
+name: Infrastructure CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ansible:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@v4
+
+      - name: Checkout application repository
+        uses: actions/checkout@v4
+        with:
+          repository: redmineproject/Redmine-Project
+          ref: main
+          token: ${{ secrets.APP_REPO_PAT }}
+          path: app-repo
+
+      - name: Placeholder deploy step
+        run: echo "Add Ansible deployment steps here"
