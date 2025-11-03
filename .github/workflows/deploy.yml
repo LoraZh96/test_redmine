@@ -79,6 +79,15 @@ jobs:
           sed -i "s/WORKSPACE_PLACEHOLDER/${TF_WORKSPACE}/" backend.tf
         working-directory: ${{ env.TF_WORKDIR }}
 
+      - name: Configure Terraform credentials
+        if: ${{ env.TF_API_TOKEN != '' }}
+        run: |
+          cat <<EOF > ~/.terraformrc
+          credentials "app.terraform.io" {
+            token = "${TF_API_TOKEN}"
+          }
+          EOF
+
       - name: Terraform init
         if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: terraform init -input=false
