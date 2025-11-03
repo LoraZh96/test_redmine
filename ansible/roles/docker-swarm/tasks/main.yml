@@ -1,35 +1,39 @@
 ---
+# Vérifier si le nœud est déjà dans un cluster Swarm
 - name: Vérifier si le nœud est déjà dans un cluster Swarm
-  command: docker info --format '{%raw%}{{.Swarm.LocalNodeState}}{%endraw%}'
+  command: docker info --format '{% raw %}{{ .Swarm.LocalNodeState }}{% endraw %}'
   register: swarm_status
   changed_when: false
   failed_when: false
-  
 
+# Initialiser le Swarm sur le manager
 - name: Initialiser le Swarm sur le manager
-  command: >
-    docker swarm init
-    --advertise-addr {{ ansible_host }}
+  command: docker swarm init --advertise-addr {{ ansible_host }}
   when:
-   - "'active' not in swarm_status.stdout"
-   - inventory_hostname == groups['manager'][0]
+    - inventory_hostname == groups['manager'][0]
+    - "'active' not in swarm_status.stdout"
   register: swarm_init
+  changed_when: "'Swarm initialized' in swarm_init.stdout or 'This node is already part of a swarm' not in swarm_init.stderr"
   failed_when: false
-  changed_when: "'Swarm initialized' in swarm_init.stdout"
 
+# Récupérer le token d'adhésion des workers
 - name: Récupérer le token d'adhésion des workers
   command: docker swarm join-token -q worker
   register: worker_token
-  when: inventory_hostname == groups['manager'][0]
+  when:
+    - inventory_hostname == groups['manager'][0]
+    - "'active' in swarm_status.stdout or 'Swarm initialized' in swarm_init.stdout"
   changed_when: false
 
+# Joindre les workers au cluster
 - name: Joindre les workers au cluster
   command: docker swarm join --token {{ hostvars[groups['manager'][0]].worker_token.stdout }} {{ hostvars[groups['manager'][0]].ansible_host }}:2377
   when:
-    - "'active' not in swarm_status.stdout"
     - inventory_hostname != groups['manager'][0]
+    - "'active' not in swarm_status.stdout"
   failed_when: false
 
+# réseau overlay
 - name: Créer le réseau overlay pour les services
   community.docker.docker_network:
     name: app_net
@@ -37,13 +41,7 @@
     attachable: true
   when: inventory_hostname == groups['manager'][0]
 
-- name: Récupérer le token d'adhésion des workers
-  command: docker swarm join-token -q worker
-  register: worker_token
-  when: inventory_hostname == groups['manager'][0]
-  changed_when: false
-
-
+# cAdvisor
 - name: Installer cAdvisor pour la supervision Docker
   template:
     src: cAdvisor.service.j2
@@ -55,4 +53,3 @@
     name: cadvisor
     state: started
     enabled: true
-
