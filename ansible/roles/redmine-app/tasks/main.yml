@@ -1,4 +1,28 @@
 ---
+
+# Lire et convertir le contenu du fichier .env en dictionnaire
+- name: Charger les variables depuis .env
+  when: env_file.stat.exists | default(false)
+  ansible.builtin.set_fact:
+    env_data: >-
+      {{
+        ('[env]\n' + lookup('file', playbook_dir + '/../../.env'))
+        | community.general.from_ini
+      }}
+
+# Définir les variables Redmine DB à partir du contenu .env
+- name: Définir les variables Redmine DB à partir du .env
+  when: env_file.stat.exists | default(false)
+  no_log: true
+  ansible.builtin.set_fact:
+    redmine_db_host: "{{ env_data.env.REDMINE_DB_POSTGRES | default('') }}"
+    redmine_db_user: "{{ env_data.env.REDMINE_DB_USERNAME | default('') }}"
+    redmine_db_password: "{{ env_data.env.REDMINE_DB_PASSWORD | default('') }}"
+    redmine_db_port: "{{ env_data.env.REDMINE_DB_PORT | default('5432') }}"
+    redmine_db_database: "{{ env_data.env.REDMINE_DB_DATABASE | default('postgres') }}"
+    redmine_db_encoding: "{{ env_data.env.REDMINE_DB_ENCODING | default('utf8') }}"
+    redmine_db_sslmode: "{{ env_data.env.REDMINE_DB_SSLMODE | default('require') }}"
+
 - name: Créer le répertoire de déploiement
   file:
     path: "{{ redmine_dir }}"
@@ -23,7 +47,7 @@
     owner: root
     group: root
     mode: '0644'
-    
+
 #- name: suppression des fichiers
 #  file:
 #    path: "{{ redmine_dir }}/{{ item }}"
@@ -86,7 +110,7 @@
 
 - name: Vérifier la disponibilité du service Redmine
   uri:
-    url: "http://{{ terraform_outputs.proxy_ip.value }}:3000"
+    url: "http://{{ hostvars['proxy'].public_ip | default(hostvars['proxy'].ansible_host) }}:3000"
     method: GET
     status_code: 200
   register: redmine_health

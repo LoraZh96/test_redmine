@@ -10,7 +10,7 @@
 - name: Initialiser le Swarm sur le manager
   command: docker swarm init --advertise-addr {{ ansible_host }}
   when:
-    - inventory_hostname == groups['manager'][0]
+    - "'manager' in group_names"
     - swarm_status.stdout is defined
     - swarm_status.stdout != "active"
   register: swarm_init

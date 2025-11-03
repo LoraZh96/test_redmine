@@ -2,16 +2,6 @@
 # ==============================================================
 # PLAYBOOK GLOBAL — déploiement complet de l’infrastructure
 # ==============================================================
-
-- name: Charger les variables depuis Terraform
-  hosts: localhost
-  become: false
-  gather_facts: false
-  roles:
-    - infra-vars
-
-
-# ==============================================================
 # Configuration des serveurs
 # ==============================================================
 
