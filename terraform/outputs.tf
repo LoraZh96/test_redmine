@@ -18,6 +18,7 @@ output "private_subnet_b_id" {
   description = "ID du subnet privé (AZ B)"
   value       = aws_subnet.private_b.id
 }
+
 output "bastion_public_ip" {
   description = "Public IP of the Bastion host"
   value       = aws_instance.bastion.public_ip
@@ -57,7 +58,7 @@ output "monitoring_private_ip" {
   description = "Private IP of the Monitoring server"
   value       = aws_instance.monitoring.private_ip
 }
- 
+
 # outputd_db
 
 output "rds_endpoint" {
