@@ -1,0 +1,33 @@
+name: Infrastructure CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ansible:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@v4
+
+      - name: Checkout application repository
+        uses: actions/checkout@v4
+        with:
+          repository: redmineproject/Redmine-Project
+          ref: main
+          token: ${{ secrets.APP_REPO_PAT }}
+          path: app-repo
+
+      - name: Prepare Redmine artifacts
+        run: |
+          set -euo pipefail
+          rm -rf ansible/redmine
+          mkdir -p ansible/redmine/docker
+          cp app-repo/deploy/docker-compose.yml ansible/redmine/docker-compose.yml
+          cp app-repo/Dockerfile ansible/redmine/Dockerfile
+          cp -r app-repo/docker/. ansible/redmine/docker/
