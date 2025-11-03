@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Checkout application repository
         uses: actions/checkout@v4
@@ -31,3 +33,90 @@ jobs:
           cp app-repo/deploy/docker-compose.yml ansible/redmine/docker-compose.yml
           cp app-repo/Dockerfile ansible/redmine/Dockerfile
           cp -r app-repo/docker/. ansible/redmine/docker/
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Configure Terraform Cloud backend
+        if: ${{ secrets.TF_API_TOKEN != '' && secrets.TF_ORG != '' && secrets.TF_WORKSPACE != '' }}
+        run: |
+          cat <<'EOF' > backend.tf
+          terraform {
+            backend "remote" {
+              hostname     = "app.terraform.io"
+              organization = "${TF_ORG}"
+
+              workspaces {
+                name = "${TF_WORKSPACE}"
+              }
+            }
+          }
+          EOF
+        working-directory: terraform
+        env:
+          TF_ORG: ${{ secrets.TF_ORG }}
+          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      - name: Terraform init
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        run: terraform init -input=false
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform validate
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        run: terraform validate
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform plan
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        run: terraform plan -input=false -out=tfplan
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_VAR_db_username: ${{ secrets.REDMINE_DB_USERNAME }}
+          TF_VAR_redmine_db_password: ${{ secrets.REDMINE_DB_PASSWORD }}
+
+      - name: Terraform apply
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        run: terraform apply -input=false -auto-approve tfplan
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_VAR_db_username: ${{ secrets.REDMINE_DB_USERNAME }}
+          TF_VAR_redmine_db_password: ${{ secrets.REDMINE_DB_PASSWORD }}
+
+      - name: Commit inventory updates
+        if: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- ansible/inventory.ini; then
+            echo "No inventory changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ansible/inventory.ini
+          git commit -m "ci: update ansible inventory"
+          git push
