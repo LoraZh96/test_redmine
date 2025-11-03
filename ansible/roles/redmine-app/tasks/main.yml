@@ -1,19 +1,23 @@
----
- name: Vérifier que le fichier .env existe
+# Vérifier que le fichier .env existe (sur le contrôleur local)
+- name: Vérifier que le fichier .env existe
+  become: false
   ansible.builtin.stat:
-    path: "{{ playbook_dir }}/../../.env"
+    path: "{{ playbook_dir }}/../.env"
   register: env_file
   changed_when: false
+  delegate_to: localhost
 
-# Lire et convertir le contenu du fichier .env en dictionnaire
+# Charger les variables depuis .env (depuis le contrôleur local)
 - name: Charger les variables depuis .env
+  become: false
   when: env_file.stat.exists | default(false)
   ansible.builtin.set_fact:
     env_data: >-
       {{
-        ('[env]\n' + lookup('file', playbook_dir + '/../../.env'))
+        ('[env]\n' + lookup('file', playbook_dir + '/../.env'))
         | community.general.from_ini
       }}
+  delegate_to: localhost
 
 # Définir les variables Redmine DB à partir du contenu .env
 - name: Définir les variables Redmine DB à partir du .env
