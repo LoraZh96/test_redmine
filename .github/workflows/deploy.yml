@@ -23,7 +23,7 @@ jobs:
           token: ${{ secrets.APP_REPO_PAT }}
           path: app-repo
 
-      - name: Prepare Redmine artifacts for Ansible
+      - name: Prepare Redmine artifacts
         run: |
           set -euo pipefail
           rm -rf ansible/redmine
@@ -31,23 +31,3 @@ jobs:
           cp app-repo/deploy/docker-compose.yml ansible/redmine/docker-compose.yml
           cp app-repo/Dockerfile ansible/redmine/Dockerfile
           cp -r app-repo/docker/. ansible/redmine/docker/
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7
-
-      - name: Terraform fmt check
-        run: terraform fmt -check -recursive
-        working-directory: terraform
-
-      - name: Terraform init
-        run: terraform init -backend=false
-        working-directory: terraform
-
-      - name: Terraform validate
-        run: terraform validate
-        working-directory: terraform
-
-      - name: Placeholder deploy step
-        run: echo "Add Ansible deployment steps here"
