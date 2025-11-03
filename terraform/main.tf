@@ -1,9 +1,6 @@
 terraform {
   cloud {
-    organization = "${TF_ORG}"
-    workspaces {
-      name = "${TF_WORKSPACE}"
-    }
+    organization = "anironi-terraform"
   }
   required_providers {
     aws = {
