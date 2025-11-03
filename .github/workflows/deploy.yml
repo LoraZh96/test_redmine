@@ -1,16 +1,33 @@
-name: Infrastructure CI
+name: Infrastructure Deploy
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      run_ansible_only:
+        description: 'Run only Ansible deployment'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
 
 jobs:
-  ansible:
+  terraform:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
+    env:
+      TF_WORKDIR: terraform
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+      TF_ORG: ${{ secrets.TF_ORG }}
+      TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+      TF_VAR_db_username: ${{ secrets.REDMINE_DB_USERNAME }}
+      TF_VAR_redmine_db_password: ${{ secrets.REDMINE_DB_PASSWORD }}
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v4
@@ -40,9 +57,9 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Configure Terraform Cloud backend
-        if: ${{ secrets.TF_API_TOKEN != '' && secrets.TF_ORG != '' && secrets.TF_WORKSPACE != '' }}
+        if: ${{ env.TF_API_TOKEN != '' && env.TF_ORG != '' && env.TF_WORKSPACE != '' }}
         run: |
-          cat <<'EOF' > backend.tf
+          cat <<'BACKEND' > backend.tf
           terraform {
             backend "remote" {
               hostname     = "app.terraform.io"
@@ -53,62 +70,43 @@ jobs:
               }
             }
           }
-          EOF
-        working-directory: terraform
-        env:
-          TF_ORG: ${{ secrets.TF_ORG }}
-          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+          BACKEND
+        working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform fmt check
         run: terraform fmt -check -recursive
-        working-directory: terraform
+        working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform init
-        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: terraform init -input=false
-        working-directory: terraform
+        working-directory: ${{ env.TF_WORKDIR }}
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform validate
-        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: terraform validate
-        working-directory: terraform
+        working-directory: ${{ env.TF_WORKDIR }}
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform plan
-        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: terraform plan -input=false -out=tfplan
-        working-directory: terraform
+        working-directory: ${{ env.TF_WORKDIR }}
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
-          TF_VAR_db_username: ${{ secrets.REDMINE_DB_USERNAME }}
-          TF_VAR_redmine_db_password: ${{ secrets.REDMINE_DB_PASSWORD }}
+          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform apply
-        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: terraform apply -input=false -auto-approve tfplan
-        working-directory: terraform
+        working-directory: ${{ env.TF_WORKDIR }}
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          TF_CLOUD_TOKEN: ${{ secrets.TF_API_TOKEN }}
-          TF_VAR_db_username: ${{ secrets.REDMINE_DB_USERNAME }}
-          TF_VAR_redmine_db_password: ${{ secrets.REDMINE_DB_PASSWORD }}
+          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Commit inventory updates
-        if: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_DEFAULT_REGION != '' }}
+        if: ${{ github.ref == 'refs/heads/main' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: |
           set -euo pipefail
           if git diff --quiet -- ansible/inventory.ini; then
@@ -120,3 +118,71 @@ jobs:
           git add ansible/inventory.ini
           git commit -m "ci: update ansible inventory"
           git push
+
+  ansible:
+    runs-on: ubuntu-latest
+    needs: [terraform]
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.run_ansible_only == 'true') || needs.terraform.result == 'success' }}
+    env:
+      REDMINE_DB_USERNAME: ${{ secrets.REDMINE_DB_USERNAME }}
+      REDMINE_DB_PASSWORD: ${{ secrets.REDMINE_DB_PASSWORD }}
+      REDMINE_DB_DATABASE: ${{ secrets.REDMINE_DB_DATABASE }}
+      REDMINE_DB_ENCODING: ${{ secrets.REDMINE_DB_ENCODING }}
+      REDMINE_DB_PORT: ${{ secrets.REDMINE_DB_PORT }}
+      REDMINE_DB_SSLMODE: ${{ secrets.REDMINE_DB_SSLMODE }}
+      REDMINE_SECRET_KEY_BASE: ${{ secrets.REDMINE_SECRET_KEY_BASE }}
+    steps:
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout application repository
+        uses: actions/checkout@v4
+        with:
+          repository: redmineproject/Redmine-Project
+          ref: main
+          token: ${{ secrets.APP_REPO_PAT }}
+          path: app-repo
+
+      - name: Prepare Redmine artifacts
+        run: |
+          set -euo pipefail
+          rm -rf ansible/redmine
+          mkdir -p ansible/redmine/docker
+          cp app-repo/deploy/docker-compose.yml ansible/redmine/docker-compose.yml
+          cp app-repo/Dockerfile ansible/redmine/Dockerfile
+          cp -r app-repo/docker/. ansible/redmine/docker/
+
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install ansible
+          ansible-galaxy collection install community.general
+
+      - name: Install SSH key
+        env:
+          BASTION_SSH_KEY: ${{ secrets.BASTION_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$BASTION_SSH_KEY" > ~/.ssh/id_ed25519_bastion
+          chmod 600 ~/.ssh/id_ed25519_bastion
+
+      - name: Run Ansible playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+          REDMINE_DB_USERNAME: ${{ env.REDMINE_DB_USERNAME }}
+          REDMINE_DB_PASSWORD: ${{ env.REDMINE_DB_PASSWORD }}
+          REDMINE_DB_DATABASE: ${{ env.REDMINE_DB_DATABASE }}
+          REDMINE_DB_ENCODING: ${{ env.REDMINE_DB_ENCODING }}
+          REDMINE_DB_PORT: ${{ env.REDMINE_DB_PORT }}
+          REDMINE_DB_SSLMODE: ${{ env.REDMINE_DB_SSLMODE }}
+          REDMINE_SECRET_KEY_BASE: ${{ env.REDMINE_SECRET_KEY_BASE }}
+        run: ansible-playbook -i ansible/inventory.ini ansible/playbook_global.yml
