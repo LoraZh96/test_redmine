@@ -1,4 +1,9 @@
 ---
+ name: Vérifier que le fichier .env existe
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../.env"
+  register: env_file
+  changed_when: false
 
 # Lire et convertir le contenu du fichier .env en dictionnaire
 - name: Charger les variables depuis .env
