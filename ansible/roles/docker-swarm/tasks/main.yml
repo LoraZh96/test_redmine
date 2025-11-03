@@ -11,9 +11,10 @@
   command: docker swarm init --advertise-addr {{ ansible_host }}
   when:
     - inventory_hostname == groups['manager'][0]
-    - "'active' not in swarm_status.stdout"
+    - swarm_status.stdout is defined
+    - swarm_status.stdout != "active"
   register: swarm_init
-  changed_when: "'Swarm initialized' in swarm_init.stdout or 'This node is already part of a swarm' not in swarm_init.stderr"
+  changed_when: "'Swarm initialized' in swarm_init.stdout"
   failed_when: false
 
 # Récupérer le token d'adhésion des workers
