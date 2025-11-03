@@ -1,19 +1,23 @@
 ---
- name: Vérifier que le fichier .env existe
+- name: Vérifier que le fichier .env existe
+  become: false
   ansible.builtin.stat:
-    path: "{{ playbook_dir }}/../../.env"
+    path: "{{ playbook_dir }}/../.env"
   register: env_file
   changed_when: false
+  delegate_to: localhost
 
 # Lire et convertir le contenu du fichier .env en dictionnaire
 - name: Charger les variables depuis .env
+  become: false
   when: env_file.stat.exists | default(false)
   ansible.builtin.set_fact:
     env_data: >-
       {{
-        ('[env]\n' + lookup('file', playbook_dir + '/../../.env'))
+        ('[env]\n' + lookup('file', playbook_dir + '/../.env'))
         | community.general.from_ini
       }}
+  delegate_to: localhost
 
 # Définir les variables Redmine DB à partir du contenu .env
 - name: Définir les variables Redmine DB à partir du .env
@@ -45,13 +49,13 @@
     mode: '0644'
   notify: Restart redmine stack
 
-- name: Copier les fichiers nécessaires (Dockerfile, entrypoint, etc.)
-  copy:
-    src: "{{ redmine_files_src }}/"
-    dest: "{{ redmine_dir }}/"
-    owner: root
-    group: root
-    mode: '0644'
+#- name: Copier les fichiers nécessaires (Dockerfile, entrypoint, etc.)
+#  copy:
+#    src: "{{ redmine_files_src }}/"
+#    dest: "{{ redmine_dir }}/"
+#    owner: root
+#    group: root
+#    mode: '0644'
 
 #- name: suppression des fichiers
 #  file:
@@ -64,39 +68,36 @@
 #      - "docker-compose.yml"
 #    ignore_errors: yes
 
-- name: Créer les secrets Docker Swarm à partir des sorties Terraform
+- name: Créer les secrets Docker Swarm
   shell: |
-    for secret in REDMINE_DB_POSTGRES REDMINE_DB_PORT REDMINE_DB_USERNAME REDMINE_DB_PASSWORD REDMINE_DB_DATABASE REDMINE_DB_ENCODING REDMINE_SECRET_KEY_BASE; do
-      if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^$secret$"; then
-        case "$secret" in
-          REDMINE_DB_POSTGRES)
-            echo "{{ env_data.env.REDMINE_DB_POSTGRES }}" | docker secret create $secret -
-            ;;
-          REDMINE_DB_PORT)
-            echo "{{ env_data.env.REDMINE_DB_PORT.value | default('5432') }}" | docker secret create $secret -
-            ;;
-          REDMINE_DB_USERNAME)
-            echo "{{ env_data.env.REDMINE_DB_USERNAME }}" | docker secret create $secret -
-            ;;
-          REDMINE_DB_PASSWORD)
-            echo "{{ env_data.env.REDMINE_DB_PASSWORD }}" | docker secret create $secret -
-            ;;
-          REDMINE_DB_DATABASE)
-            echo "{{ env_data.env.REDMINE_DB_DATABASE.value | default('redmine') }}" | docker secret create $secret -
-            ;;
-          REDMINE_DB_ENCODING)
-            echo "{{ env_data.env.REDMINE_DB_ENCODING | default('utf8') }}" | docker secret create $secret -
-            ;;
-          REDMINE_SECRET_KEY_BASE)
-            openssl rand -hex 64 | docker secret create $secret -
-            ;;
-        esac
-      fi
-    done
+    SECRET_NAME="{{ item.name }}"
+    SECRET_VALUE="{{ item.value }}"
+    
+    if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^${SECRET_NAME}$"; then
+      echo "${SECRET_VALUE}" | docker secret create ${SECRET_NAME} -
+    fi
+  loop:
+    - { name: "REDMINE_DB_POSTGRES", value: "{{ redmine_db_host }}" }
+    - { name: "REDMINE_DB_PORT", value: "{{ redmine_db_port }}" }
+    - { name: "REDMINE_DB_USERNAME", value: "{{ redmine_db_user }}" }
+    - { name: "REDMINE_DB_PASSWORD", value: "{{ redmine_db_password }}" }
+    - { name: "REDMINE_DB_DATABASE", value: "{{ redmine_db_database }}" }
+    - { name: "REDMINE_DB_ENCODING", value: "{{ redmine_db_encoding }}" }
+    - { name: "REDMINE_DB_SSLMODE", value: "{{ redmine_db_sslmode }}" }
   args:
     executable: /bin/bash
   no_log: true
+  when: inventory_hostname == groups['manager'][0]
 
+- name: Créer le secret REDMINE_SECRET_KEY_BASE
+  shell: |
+    if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^REDMINE_SECRET_KEY_BASE$"; then
+      openssl rand -hex 64 | docker secret create REDMINE_SECRET_KEY_BASE -
+    fi
+  args:
+    executable: /bin/bash
+  no_log: true
+  when: inventory_hostname == groups['manager'][0]
 
 - name: Déployer ou redéployer le stack Redmine avec Docker Swarm
   shell: docker stack deploy -c {{ redmine_dir }}/docker-compose.yml redmine

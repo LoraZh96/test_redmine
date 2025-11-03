@@ -15,24 +15,32 @@
     - swarm_status.stdout != "active"
   register: swarm_init
   changed_when: "'Swarm initialized' in swarm_init.stdout"
-  failed_when: false
+  failed_when:
+    - swarm_init.rc is defined
+    - swarm_init.rc != 0
+    - "'already part of a swarm' not in swarm_init.stderr"
 
 # Récupérer le token d'adhésion des workers
 - name: Récupérer le token d'adhésion des workers
   command: docker swarm join-token -q worker
   register: worker_token
-  when:
-    - inventory_hostname == groups['manager'][0]
-    - "'active' in swarm_status.stdout or 'Swarm initialized' in swarm_init.stdout"
+  when: inventory_hostname == groups['manager'][0]
   changed_when: false
+  failed_when: false
 
 # Joindre les workers au cluster
 - name: Joindre les workers au cluster
   command: docker swarm join --token {{ hostvars[groups['manager'][0]].worker_token.stdout }} {{ hostvars[groups['manager'][0]].ansible_host }}:2377
   when:
     - inventory_hostname != groups['manager'][0]
-    - "'active' not in swarm_status.stdout"
-  failed_when: false
+    - swarm_status.stdout != "active"
+    - hostvars[groups['manager'][0]].worker_token is defined
+    - hostvars[groups['manager'][0]].worker_token.stdout is defined
+  register: swarm_join
+  failed_when:
+    - swarm_join.rc is defined
+    - swarm_join.rc != 0
+    - "'already part of a swarm' not in swarm_join.stderr"
 
 # réseau overlay
 - name: Créer le réseau overlay pour les services
