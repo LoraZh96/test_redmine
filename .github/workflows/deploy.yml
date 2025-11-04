@@ -73,17 +73,22 @@ jobs:
           }
           EOF
 
+      - name: Write Terraform backend config
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && env.TF_API_TOKEN != '' && env.TF_ORG != '' && env.TF_WORKSPACE != '' }}
+        run: |
+          cat <<EOF > backend.auto.tfbackend
+          hostname     = "app.terraform.io"
+          organization = "${TF_ORG}"
+
+          workspaces {
+            name = "${TF_WORKSPACE}"
+          }
+          EOF
+        working-directory: ${{ env.TF_WORKDIR }}
+
       - name: Terraform init
         if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
-        run: |
-          if [ -n "${TF_API_TOKEN}" ] && [ -n "${TF_ORG}" ] && [ -n "${TF_WORKSPACE}" ]; then
-            terraform init -input=false \
-              -backend-config="hostname=app.terraform.io" \
-              -backend-config="organization=${TF_ORG}" \
-              -backend-config="workspaces.name=${TF_WORKSPACE}"
-          else
-            terraform init -input=false
-          fi
+        run: terraform init -input=false
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform validate
