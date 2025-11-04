@@ -10,6 +10,10 @@ on:
         description: 'Run only Ansible deployment'
         required: false
         default: 'false'
+      run_terraform_apply:
+        description: 'Run terraform apply step'
+        required: false
+        default: 'true'
 
 permissions:
   contents: write
@@ -97,14 +101,14 @@ jobs:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform apply
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         run: terraform apply -input=false -auto-approve tfplan
         working-directory: ${{ env.TF_WORKDIR }}
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Upload Terraform state artifact
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         uses: actions/upload-artifact@v4
         with:
           name: terraform-state
@@ -113,7 +117,7 @@ jobs:
             terraform/*.tfstate.backup
 
       - name: Commit inventory updates
-        if: ${{ github.ref == 'refs/heads/prod' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        if: ${{ github.ref == 'refs/heads/prod' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         run: |
           set -euo pipefail
           if git diff --quiet -- ansible/inventory.ini; then
