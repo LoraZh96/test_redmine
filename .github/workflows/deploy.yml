@@ -72,6 +72,12 @@ jobs:
             echo "use-backend=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Ensure Terraform Cloud secrets are set
+        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && steps.tf_backend.outputs.use-backend != 'true' }}
+        run: |
+          echo "::error::Terraform Cloud backend requires TF_API_TOKEN, TF_ORG, and TF_WORKSPACE secrets." >&2
+          exit 1
+
       - name: Terraform fmt check
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
         run: terraform fmt -check -recursive
@@ -101,8 +107,8 @@ jobs:
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform init
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' }}
-        run: terraform init -input=false
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        run: terraform init -input=false -backend-config=backend.auto.tfbackend
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform validate
