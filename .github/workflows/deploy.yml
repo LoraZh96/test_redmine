@@ -60,25 +60,6 @@ jobs:
         run: terraform fmt -check -recursive
         working-directory: ${{ env.TF_WORKDIR }}
 
-      - name: Configure Terraform Cloud backend
-        if: ${{ env.TF_API_TOKEN != '' && env.TF_ORG != '' && env.TF_WORKSPACE != '' }}
-        run: |
-          cat <<'BACKEND' > backend.tf
-          terraform {
-            backend "remote" {
-              hostname = "app.terraform.io"
-              organization = "ORG_PLACEHOLDER"
-
-              workspaces {
-                name = "WORKSPACE_PLACEHOLDER"
-              }
-            }
-          }
-          BACKEND
-          sed -i "s/ORG_PLACEHOLDER/${TF_ORG}/" backend.tf
-          sed -i "s/WORKSPACE_PLACEHOLDER/${TF_WORKSPACE}/" backend.tf
-        working-directory: ${{ env.TF_WORKDIR }}
-
       - name: Configure Terraform credentials
         if: ${{ env.TF_API_TOKEN != '' }}
         run: |
@@ -90,10 +71,16 @@ jobs:
 
       - name: Terraform init
         if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
-        run: terraform init -input=false
+        run: |
+          if [ -n "${TF_API_TOKEN}" ] && [ -n "${TF_ORG}" ] && [ -n "${TF_WORKSPACE}" ]; then
+            terraform init -input=false \
+              -backend-config="hostname=app.terraform.io" \
+              -backend-config="organization=${TF_ORG}" \
+              -backend-config="workspaces=name=${TF_WORKSPACE}"
+          else
+            terraform init -input=false
+          fi
         working-directory: ${{ env.TF_WORKDIR }}
-        env:
-          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform validate
         if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
