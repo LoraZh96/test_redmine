@@ -1,4 +1,8 @@
 ---
+# === Déploiement automatisé de Redmine dans un cluster Docker Swarm ===
+# Ce playbook copie le docker-compose prêt, crée les secrets, déploie le stack et vérifie l’état du service.
+
+# Vérifie si le fichier .env existe sur le contrôleur
 - name: Vérifier que le fichier .env existe
   become: false
   ansible.builtin.stat:
@@ -7,7 +11,7 @@
   changed_when: false
   delegate_to: localhost
 
-# Charger les variables depuis .env (depuis le contrôleur local)
+# Charge les variables depuis le fichier .env (au format INI)
 - name: Charger les variables depuis .env
   become: false
   when: env_file.stat.exists | default(false)
@@ -19,7 +23,7 @@
       }}
   delegate_to: localhost
 
-# Définir les variables Redmine DB à partir du contenu .env
+# Définit les variables Redmine à partir du contenu du .env
 - name: Définir les variables Redmine DB à partir du .env
   when: env_file.stat.exists | default(false)
   no_log: true
@@ -28,10 +32,11 @@
     redmine_db_user: "{{ env_data.env.REDMINE_DB_USERNAME | default('') }}"
     redmine_db_password: "{{ env_data.env.REDMINE_DB_PASSWORD | default('') }}"
     redmine_db_port: "{{ env_data.env.REDMINE_DB_PORT | default('5432') }}"
-    redmine_db_database: "{{ env_data.env.REDMINE_DB_DATABASE | default('postgres') }}"
+    redmine_db_database: "{{ env_data.env.REDMINE_DB_DATABASE | default('postgres') }}"       
     redmine_db_encoding: "{{ env_data.env.REDMINE_DB_ENCODING | default('utf8') }}"
     redmine_db_sslmode: "{{ env_data.env.REDMINE_DB_SSLMODE | default('require') }}"
 
+# Crée le répertoire de déploiement sur le manager
 - name: Créer le répertoire de déploiement
   file:
     path: "{{ redmine_dir }}"
@@ -39,56 +44,41 @@
     owner: root
     group: root
     mode: '0755'
+  when: inventory_hostname == groups['manager'][0]
 
-- name: Copier le fichier docker-compose.yml commun du projet
+# Copie le docker-compose.yml prêt depuis le projet local vers le manager
+- name: Copier le docker-compose.yml prêt vers le manager
   copy:
-    src: "{{ redmine_compose_src }}"
+    src: "{{ playbook_dir }}/../redmine/docker-compose.yml"
     dest: "{{ redmine_dir }}/docker-compose.yml"
     owner: root
     group: root
     mode: '0644'
-  notify: Restart redmine stack
+  delegate_to: "{{ groups['manager'][0] }}"
+  when: inventory_hostname == groups['manager'][0]
 
-#- name: Copier les fichiers nécessaires (Dockerfile, entrypoint, etc.)
-#  copy:
-#    src: "{{ redmine_files_src }}/"
-#    dest: "{{ redmine_dir }}/"
-#    owner: root
-#    group: root
-#    mode: '0644'
-
-#- name: suppression des fichiers
-#  file:
-#    path: "{{ redmine_dir }}/{{ item }}"
-#    state: absent
-#    loop:
-#      - ".git"
-#      - "readme"
-#      - "README.md"
-#      - "docker-compose.yml"
-#    ignore_errors: yes
-
+# Crée les secrets Docker Swarm nécessaires à partir des variables du .env
 - name: Créer les secrets Docker Swarm
   shell: |
     SECRET_NAME="{{ item.name }}"
     SECRET_VALUE="{{ item.value }}"
-    
-    if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^${SECRET_NAME}$"; then
+    if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^${SECRET_NAME}$"; then       
       echo "${SECRET_VALUE}" | docker secret create ${SECRET_NAME} -
     fi
   loop:
-    - { name: "REDMINE_DB_POSTGRES", value: "{{ redmine_db_host }}" }
-    - { name: "REDMINE_DB_PORT", value: "{{ redmine_db_port }}" }
-    - { name: "REDMINE_DB_USERNAME", value: "{{ redmine_db_user }}" }
-    - { name: "REDMINE_DB_PASSWORD", value: "{{ redmine_db_password }}" }
-    - { name: "REDMINE_DB_DATABASE", value: "{{ redmine_db_database }}" }
-    - { name: "REDMINE_DB_ENCODING", value: "{{ redmine_db_encoding }}" }
-    - { name: "REDMINE_DB_SSLMODE", value: "{{ redmine_db_sslmode }}" }
+    - { name: "REDMINE_DB_POSTGRES",  value: "{{ redmine_db_host }}" }
+    - { name: "REDMINE_DB_PORT",      value: "{{ redmine_db_port }}" }
+    - { name: "REDMINE_DB_USERNAME",  value: "{{ redmine_db_user }}" }
+    - { name: "REDMINE_DB_PASSWORD",  value: "{{ redmine_db_password }}" }
+    - { name: "REDMINE_DB_DATABASE",  value: "{{ redmine_db_database }}" }
+    - { name: "REDMINE_DB_ENCODING",  value: "{{ redmine_db_encoding }}" }
+    - { name: "REDMINE_DB_SSLMODE",   value: "{{ redmine_db_sslmode }}" }
   args:
     executable: /bin/bash
   no_log: true
   when: inventory_hostname == groups['manager'][0]
 
+# Crée un secret aléatoire pour REDMINE_SECRET_KEY_BASE si inexistant
 - name: Créer le secret REDMINE_SECRET_KEY_BASE
   shell: |
     if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^REDMINE_SECRET_KEY_BASE$"; then
@@ -99,29 +89,50 @@
   no_log: true
   when: inventory_hostname == groups['manager'][0]
 
+# Supprime l'ancien stack Redmine s'il existe (pour forcer un déploiement propre)
+- name: Supprimer l'ancien stack Redmine (si existe)
+  shell: docker stack rm redmine || true
+  when: inventory_hostname == groups['manager'][0]
+  ignore_errors: true
+
+# Petite pause pour laisser Docker Swarm nettoyer les anciens services
+- pause:
+    seconds: 10
+  when: inventory_hostname == groups['manager'][0]
+
+# Déploie (ou redéploie) le stack Redmine via Docker Swarm
 - name: Déployer ou redéployer le stack Redmine avec Docker Swarm
+  become: true
   shell: docker stack deploy -c {{ redmine_dir }}/docker-compose.yml redmine
   args:
     chdir: "{{ redmine_dir }}"
   register: redmine_deploy
+  when: inventory_hostname == groups['manager'][0]
 
-- name: Vérifier le statut du stack
+# Vérifie l’état actuel du stack
+- name: Vérifier le statut du stack Redmine
   shell: docker stack ps redmine --format '{{"{{.Name}}\t{{.CurrentState}}"}}'
   register: redmine_status
   changed_when: false
+  when: inventory_hostname == groups['manager'][0]
 
+# Affiche les informations de statut dans la sortie Ansible
 - name: Afficher le statut des services Redmine
   debug:
     var: redmine_status.stdout_lines
+  when: inventory_hostname == groups['manager'][0]
 
-- name: Vérifier la disponibilité du service Redmine
+# Vérifie que le service Redmine est accessible via le reverse proxy (retour HTTP 200)        
+- name: Vérifier la disponibilité du service Redmine via reverse proxy
   uri:
-    url: "http://{{ hostvars['proxy'].public_ip | default(hostvars['proxy'].ansible_host) }}:3000"
+    url: "http://{{ hostvars['proxy'].public_ip | default(hostvars['proxy'].ansible_host) }}/"    
     method: GET
     status_code: 200
+    return_content: no
   register: redmine_health
-  retries: 10
+  retries: 15
   delay: 10
   until: redmine_health.status == 200
   changed_when: false
+  when: inventory_hostname == groups['manager'][0]
 
