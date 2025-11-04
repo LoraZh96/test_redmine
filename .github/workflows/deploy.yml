@@ -3,7 +3,7 @@ name: Infrastructure Deploy
 on:
   push:
     branches:
-      - main
+      - prod
   workflow_dispatch:
     inputs:
       run_ansible_only:
@@ -103,8 +103,17 @@ jobs:
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
+      - name: Upload Terraform state artifact
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state
+          path: |
+            terraform/*.tfstate
+            terraform/*.tfstate.backup
+
       - name: Commit inventory updates
-        if: ${{ github.ref == 'refs/heads/main' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
+        if: ${{ github.ref == 'refs/heads/prod' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: |
           set -euo pipefail
           if git diff --quiet -- ansible/inventory.ini; then
