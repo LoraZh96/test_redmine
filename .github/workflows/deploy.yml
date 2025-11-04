@@ -14,12 +14,17 @@ on:
         description: 'Run terraform apply step'
         required: false
         default: 'true'
+      run_terraform_destroy:
+        description: 'Run terraform destroy (manual)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
 
 jobs:
   terraform:
+    if: ${{ github.event.inputs.run_terraform_destroy != 'true' }}
     runs-on: ubuntu-latest
     env:
       TF_WORKDIR: terraform
@@ -169,7 +174,7 @@ jobs:
   ansible:
     runs-on: ubuntu-latest
     needs: [terraform]
-    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.run_ansible_only == 'true') || needs.terraform.result == 'success' }}
+    if: ${{ github.event.inputs.run_terraform_destroy != 'true' && ((github.event_name == 'workflow_dispatch' && github.event.inputs.run_ansible_only == 'true') || needs.terraform.result == 'success') }}
     env:
       REDMINE_DB_USERNAME: ${{ secrets.REDMINE_DB_USERNAME }}
       REDMINE_DB_PASSWORD: ${{ secrets.REDMINE_DB_PASSWORD }}
