@@ -80,7 +80,7 @@ jobs:
             terraform init -input=false \
               -backend-config="hostname=app.terraform.io" \
               -backend-config="organization=${TF_ORG}" \
-              -backend-config="workspaces=name=${TF_WORKSPACE}"
+              -backend-config="workspace=${TF_WORKSPACE}"
           else
             terraform init -input=false
           fi
