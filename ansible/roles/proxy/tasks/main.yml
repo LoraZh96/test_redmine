@@ -133,3 +133,28 @@
     state: started
     enabled: true
 
+- name: Installer Certbot
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+      - cron
+    state: present
+    update_cache: yes
+
+- name: Obtenir certificat SSL pour Duck DNS
+  command: >
+    certbot --nginx --non-interactive --agree-tos 
+    --register-unsafely-without-email
+    -d ficus-redmine.duckdns.org
+    -d ficus-prometheus.duckdns.org
+    -d ficus-grafana.duckdns.org
+  args:
+    creates: /etc/letsencrypt/live/ficus-redmine.duckdns.org/fullchain.pem
+
+- name: Configurer le renouvellement automatique
+  cron:
+    name: "Renouveler certificats Let's Encrypt"
+    minute: "0"
+    hour: "12"
+    job: "certbot renew --quiet"
