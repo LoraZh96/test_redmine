@@ -146,17 +146,21 @@ jobs:
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
+      - name: Pull Terraform state
+        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        run: terraform state pull > terraform.tfstate
+        working-directory: ${{ env.TF_WORKDIR }}
+
       - name: Upload Terraform state artifact
         if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         uses: actions/upload-artifact@v4
         with:
           name: terraform-state
           path: |
-            terraform/*.tfstate
-            terraform/*.tfstate.backup
+            terraform/terraform.tfstate
 
       - name: Commit inventory updates
-        if: ${{ github.ref == 'refs/heads/prod' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        if: ${{ (github.ref == 'refs/heads/prod' || github.ref == 'refs/heads/main') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         run: |
           set -euo pipefail
           if git diff --quiet -- ansible/inventory.ini; then
