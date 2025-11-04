@@ -29,7 +29,7 @@ http {
 
     # --- Reverse Proxy vers Redmine ---
     upstream redmine_app {
-    server {{ hostvars[groups['manager'][0]].ansible_host }};
+    server {{ hostvars[groups['manager'][0]].ansible_host }}:3000;
     }
 
 
