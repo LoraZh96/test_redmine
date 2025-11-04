@@ -29,7 +29,7 @@ http {
 
     # --- Reverse Proxy vers Redmine ---
     upstream redmine_app {
-    server {{ hostvars[groups['manager'][0]].private_ip }};
+    server {{ hostvars[groups['manager'][0]].private_ip }}:3000;
     }
 
 
