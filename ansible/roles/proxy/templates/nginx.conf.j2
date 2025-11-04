@@ -28,9 +28,9 @@ http {
     modsecurity_rules_file /etc/nginx/modsecurity.conf;
 
     # --- Reverse Proxy vers Redmine ---
-    upstream redmine_app {
-    server {{ hostvars[groups['manager'][0]].ansible_host }}:3000;
-    }
+    #upstream redmine_app {
+    #server {{ hostvars[groups['manager'][0]].ansible_host }}:3000;
+    #}
 
 
     server {
@@ -47,7 +47,7 @@ http {
         error_log  /var/log/nginx/redmine_error.log;
 
         location / {
-            proxy_pass         http://redmine_app:3000;
+            proxy_pass         http://{{ hostvars['manager'].ansible_host }}:3000;
             proxy_set_header   Host $host;
             proxy_set_header   X-Real-IP $remote_addr;
             proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
