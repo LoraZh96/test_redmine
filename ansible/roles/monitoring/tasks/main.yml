@@ -72,6 +72,6 @@
 - name: Afficher les URLs d'accès
   debug:
     msg:
-      - " Prometheus disponible sur http://{{ terraform_outputs.monitoring_ip.value }}:9090"
-      - " Grafana disponible sur http://{{ terraform_outputs.monitoring_ip.value }}:3000 (admin / admin)"
-      - " Alertmanager disponible sur http://{{ terraform_outputs.monitoring_ip.value }}:9093"
+      - " Prometheus disponible sur http://{{ (hostvars['monitoring'].ansible_host) }}:9090"
+      - " Grafana disponible sur http://{{ (hostvars['monitoring'].ansible_host) }}:3000 (admin / admin)"
+      - " Alertmanager disponible sur http://{{ (hostvars['monitoring'].ansible_host) }}:9093"
