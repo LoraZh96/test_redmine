@@ -59,24 +59,17 @@ jobs:
         with:
           terraform_version: 1.5.7
 
-      - name: Determine Terraform backend usage
-        id: tf_backend
-        env:
-          HAVE_TOKEN: ${{ secrets.TF_API_TOKEN != '' }}
-          HAVE_ORG: ${{ secrets.TF_ORG != '' }}
-          HAVE_WORKSPACE: ${{ secrets.TF_WORKSPACE != '' }}
-        run: |
-          if [ "$HAVE_TOKEN" = "true" ] && [ "$HAVE_ORG" = "true" ] && [ "$HAVE_WORKSPACE" = "true" ]; then
-            echo "use-backend=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "use-backend=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Ensure Terraform Cloud secrets are set
-        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && steps.tf_backend.outputs.use-backend != 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+        env:
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_ORG: ${{ secrets.TF_ORG }}
+          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
         run: |
-          echo "::error::Terraform Cloud backend requires TF_API_TOKEN, TF_ORG, and TF_WORKSPACE secrets." >&2
-          exit 1
+          if [ -z "$TF_API_TOKEN" ] || [ -z "$TF_ORG" ] || [ -z "$TF_WORKSPACE" ]; then
+            echo "::error::Terraform Cloud requires TF_API_TOKEN, TF_ORG, and TF_WORKSPACE secrets." >&2
+            exit 1
+          fi
 
       - name: Terraform fmt check
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
@@ -84,7 +77,7 @@ jobs:
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Configure Terraform credentials
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
         run: |
           cat <<EOF > ~/.terraformrc
           credentials "app.terraform.io" {
@@ -92,48 +85,69 @@ jobs:
           }
           EOF
 
-      - name: Write Terraform backend config
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' }}
+      - name: Verify Terraform Cloud workspace
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+        env:
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_ORG: ${{ secrets.TF_ORG }}
+          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
         run: |
-          cat <<EOF > backend.auto.tfbackend
-          hostname     = "app.terraform.io"
-          organization = "${TF_ORG}"
+          set -euo pipefail
+          workspace_info=$(curl -fsSL \
+            -H "Authorization: Bearer ${TF_API_TOKEN}" \
+            -H "Content-Type: application/vnd.api+json" \
+            "https://app.terraform.io/api/v2/organizations/${TF_ORG}/workspaces/${TF_WORKSPACE}")
+          execution_mode=$(echo "$workspace_info" | jq -r '.data.attributes."execution-mode"')
+          if [ "$execution_mode" != "local" ]; then
+            echo "::error::Workspace ${TF_ORG}/${TF_WORKSPACE} execution mode is ${execution_mode}. Set it to 'Local' (CLI-driven)." >&2
+            exit 1
+          fi
 
-          workspaces {
-            name = "${TF_WORKSPACE}"
+      - name: Write Terraform Cloud configuration
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+        run: |
+          cat <<EOF > cloud.auto.tf
+          terraform {
+            cloud {
+              organization = "${TF_ORG}"
+
+              workspaces {
+                name = "${TF_WORKSPACE}"
+              }
+            }
           }
           EOF
           echo "Using Terraform Cloud backend: org=${TF_ORG}, workspace=${TF_WORKSPACE}"
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform init
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
-        run: terraform init -input=false -backend-config=backend.auto.tfbackend
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+        run: terraform init -input=false
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform validate
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
         run: terraform validate
         working-directory: ${{ env.TF_WORKDIR }}
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform plan
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
         run: terraform plan -input=false -out=tfplan
         working-directory: ${{ env.TF_WORKDIR }}
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform apply
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         run: terraform apply -input=false -auto-approve tfplan
         working-directory: ${{ env.TF_WORKDIR }}
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Upload Terraform state artifact
-        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         uses: actions/upload-artifact@v4
         with:
           name: terraform-state
@@ -142,7 +156,7 @@ jobs:
             terraform/*.tfstate.backup
 
       - name: Commit inventory updates
-        if: ${{ github.ref == 'refs/heads/prod' && steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        if: ${{ github.ref == 'refs/heads/prod' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         run: |
           set -euo pipefail
           if git diff --quiet -- ansible/inventory.ini; then
