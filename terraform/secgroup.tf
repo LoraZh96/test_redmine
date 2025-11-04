@@ -110,6 +110,17 @@ resource "aws_security_group_rule" "revproxy_from_ips" {
   description       = "443 from IPs (HTTPS)"
 }
 
+# Rule from IPs
+resource "aws_security_group_rule" "revproxy80_from_ips" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.sec-grp-revproxy.id
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "80 from IPs (HTTPS)"
+}
+
 # Rule from Bastion
 resource "aws_security_group_rule" "revproxy_from_bastion" {
   type                     = "ingress"
@@ -176,6 +187,17 @@ resource "aws_security_group_rule" "revproxy_to_internet" {
   security_group_id = aws_security_group.sec-grp-revproxy.id
   cidr_blocks       = ["0.0.0.0/0"]
   description       = "https to internet"
+}
+
+# Rule to internet
+resource "aws_security_group_rule" "revproxy80_to_internet" {
+  type              = "egress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.sec-grp-revproxy.id
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "http to internet"
 }
 
 ################# sec-grp-db in #################
