@@ -59,13 +59,26 @@ jobs:
         with:
           terraform_version: 1.5.7
 
+      - name: Determine Terraform backend usage
+        id: tf_backend
+        env:
+          HAVE_TOKEN: ${{ secrets.TF_API_TOKEN != '' }}
+          HAVE_ORG: ${{ secrets.TF_ORG != '' }}
+          HAVE_WORKSPACE: ${{ secrets.TF_WORKSPACE != '' }}
+        run: |
+          if [ "$HAVE_TOKEN" = "true" ] && [ "$HAVE_ORG" = "true" ] && [ "$HAVE_WORKSPACE" = "true" ]; then
+            echo "use-backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "use-backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Terraform fmt check
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
         run: terraform fmt -check -recursive
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Configure Terraform credentials
-        if: ${{ env.TF_API_TOKEN != '' }}
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' }}
         run: |
           cat <<EOF > ~/.terraformrc
           credentials "app.terraform.io" {
@@ -74,7 +87,7 @@ jobs:
           EOF
 
       - name: Write Terraform backend config
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && env.TF_API_TOKEN != '' && env.TF_ORG != '' && env.TF_WORKSPACE != '' }}
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' }}
         run: |
           cat <<EOF > backend.auto.tfbackend
           hostname     = "app.terraform.io"
@@ -84,36 +97,37 @@ jobs:
             name = "${TF_WORKSPACE}"
           }
           EOF
+          echo "Using Terraform Cloud backend: org=${TF_ORG}, workspace=${TF_WORKSPACE}"
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform init
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' }}
         run: terraform init -input=false
         working-directory: ${{ env.TF_WORKDIR }}
 
       - name: Terraform validate
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
         run: terraform validate
         working-directory: ${{ env.TF_WORKDIR }}
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform plan
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') }}
         run: terraform plan -input=false -out=tfplan
         working-directory: ${{ env.TF_WORKDIR }}
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Terraform apply
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         run: terraform apply -input=false -auto-approve tfplan
         working-directory: ${{ env.TF_WORKDIR }}
         env:
           TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
       - name: Upload Terraform state artifact
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        if: ${{ steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         uses: actions/upload-artifact@v4
         with:
           name: terraform-state
@@ -122,7 +136,7 @@ jobs:
             terraform/*.tfstate.backup
 
       - name: Commit inventory updates
-        if: ${{ github.ref == 'refs/heads/prod' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        if: ${{ github.ref == 'refs/heads/prod' && steps.tf_backend.outputs.use-backend == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
         run: |
           set -euo pipefail
           if git diff --quiet -- ansible/inventory.ini; then
