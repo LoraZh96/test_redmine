@@ -37,7 +37,7 @@
 # Copie le docker-compose.yml prêt depuis le projet local vers le m
 - name: Copier le docker-compose.yml prêt vers le manager
   copy:
-    src: "{{ playbook_dir }}/../redmine/docker-compose.yml"
+    src: "{{ playbook_dir }}/../files-app/docker-compose.yml"
     dest: "{{ redmine_dir }}/docker-compose.yml"
     owner: root
     group: root
@@ -48,7 +48,7 @@
 # Copie le script d'entrypoint personnalisé vers le manager
 - name: Copier le script entrypoint.sh vers le manager
   copy:
-    src: "{{ playbook_dir }}/../redmine/entrypoint.sh"
+    src: "{{ playbook_dir }}/../files-app/entrypoint.sh"
     dest: "{{ redmine_dir }}/entrypoint.sh"
     owner: root
     group: root
@@ -59,7 +59,7 @@
 # Copier le script entrypoint.sh vers tous les workers
 - name: Copier le script entrypoint.sh sur tous les workers
   copy:
-    src: "{{ playbook_dir }}/../redmine/entrypoint.sh"
+    src: "{{ playbook_dir }}/../files-app/entrypoint.sh"
     dest: /var/lib/redmine/entrypoint.sh
     owner: root
     group: root
