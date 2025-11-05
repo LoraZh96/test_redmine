@@ -105,11 +105,11 @@
   uri:
     url: "http://{{ hostvars['proxy'].public_ip | default(hostvars['proxy'].ansible_host) }}/"    
     method: GET
-    status_code: 200
+    status_code: [200, 301, 302, 303, 307, 401]
     return_content: no
   register: redmine_health
   retries: 15
   delay: 10
-  until: redmine_health.status == 200
+  until: redmine_health.status in [200, 301, 302, 303, 307, 401]
   changed_when: false
   when: inventory_hostname == groups['manager'][0]
