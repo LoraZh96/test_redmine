@@ -50,10 +50,10 @@
   delegate_to: "{{ groups['manager'][0] }}"
   when: inventory_hostname == groups['manager'][0]
 
-# Copie le script d'entrypoint personnalisé vers le manager
-- name: Copier le script entrypoint.sh vers le manager
+# Copie le script d'entrée Redmine sur le manager
+- name: Copier l'entrypoint Redmine sur le manager
   copy:
-    src: "{{ playbook_dir }}/../files-app/entrypoint.sh"
+    src: "{{ playbook_dir }}/redmine/entrypoint.sh"
     dest: "{{ redmine_dir }}/entrypoint.sh"
     owner: root
     group: root
@@ -61,16 +61,17 @@
   delegate_to: "{{ groups['manager'][0] }}"
   when: inventory_hostname == groups['manager'][0]
 
-# Copier le script entrypoint.sh vers tous les workers
-- name: Copier le script entrypoint.sh sur tous les workers
-  copy:
-    src: "{{ playbook_dir }}/../files-app/entrypoint.sh"
-    dest: /var/lib/redmine/entrypoint.sh
-    owner: root
-    group: root
-    mode: '0755'
-  when: inventory_hostname in groups['workers']
-
+# Crée ou met à jour le Docker config pour entrypoint.sh
+- name: Publier le Docker config redmine_entrypoint
+  shell: |
+    set -euo pipefail
+    if docker config inspect redmine_entrypoint >/dev/null 2>&1; then
+      docker config rm redmine_entrypoint >/dev/null 2>&1 || true
+    fi
+    docker config create redmine_entrypoint {{ redmine_dir }}/entrypoint.sh >/dev/null
+  args:
+    executable: /bin/bash
+  when: inventory_hostname == groups['manager'][0]
 
 # Crée les secrets Docker Swarm nécessaires à partir des variables du .env
 - name: Créer les secrets Docker Swarm
