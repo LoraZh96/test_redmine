@@ -18,6 +18,7 @@
     redmine_db_database: "{{ lookup('env', 'REDMINE_DB_DATABASE') | default(redmine_manager_hostvars.get('db_name', 'redmine'), true) }}"
     redmine_db_encoding: "{{ lookup('env', 'REDMINE_DB_ENCODING') | default('utf8', true) }}"
     redmine_db_sslmode: "{{ lookup('env', 'REDMINE_DB_SSLMODE') | default('require', true) }}"
+  when: inventory_hostname == groups['manager'][0]
 
 # Crée le répertoire de déploiement sur le manager
 - name: Créer le répertoire de déploiement
