@@ -49,7 +49,7 @@
 # Copie le docker-compose.yml prêt depuis le projet local vers le manager
 - name: Copier le docker-compose.yml prêt vers le manager
   copy:
-    src: "{{ playbook_dir }}/../redmine/docker-compose.yml"
+    src: "{{ playbook_dir }}/redmine/docker-compose.yml"
     dest: "{{ redmine_dir }}/docker-compose.yml"
     owner: root
     group: root
@@ -135,4 +135,3 @@
   until: redmine_health.status == 200
   changed_when: false
   when: inventory_hostname == groups['manager'][0]
-
