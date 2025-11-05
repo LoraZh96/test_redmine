@@ -4,7 +4,7 @@
 
 # Définit les variables Redmine à partir des variables CI ou de l'inventaire Terraform
 - name: Définir les variables Redmine DB
-  no_log: true
+  no_log: "{{ redmine_hide_sensitive_logs }}"
   ansible.builtin.set_fact:
     redmine_db_host: "{{ hostvars[groups['manager'][0]].get('rds_endpoint', '') }}"
     redmine_db_user: "{{ lookup('env', 'REDMINE_DB_USERNAME') | default('', true) }}"
@@ -53,7 +53,7 @@
     - { name: "REDMINE_DB_SSLMODE",   value: "{{ redmine_db_sslmode }}" }
   args:
     executable: /bin/bash
-  no_log: true
+  no_log: "{{ redmine_hide_sensitive_logs }}"
   when: inventory_hostname == groups['manager'][0]
 
 # Crée un secret aléatoire pour REDMINE_SECRET_KEY_BASE si inexistant
@@ -64,7 +64,7 @@
     fi
   args:
     executable: /bin/bash
-  no_log: true
+  no_log: "{{ redmine_hide_sensitive_logs }}"
   when: inventory_hostname == groups['manager'][0]
 
 # Supprime l'ancien stack Redmine s'il existe (pour forcer un déploiement propre)
@@ -100,16 +100,47 @@
     var: redmine_status.stdout_lines
   when: inventory_hostname == groups['manager'][0]
 
-# Vérifie que le service Redmine est accessible via le reverse proxy (retour HTTP 200)        
-- name: Vérifier la disponibilité du service Redmine via reverse proxy
-  uri:
-    url: "http://{{ hostvars['proxy'].public_ip | default(hostvars['proxy'].ansible_host) }}/"    
-    method: GET
-    status_code: [200, 301, 302, 303, 307, 401]
-    return_content: no
-  register: redmine_health
-  retries: 15
-  delay: 10
-  until: redmine_health.status in [200, 301, 302, 303, 307, 401]
-  changed_when: false
+# Vérifie que le service Redmine est accessible via le reverse proxy (retour HTTP attendu)
+- block:
+    - name: Vérifier la disponibilité du service Redmine via reverse proxy
+      uri:
+        url: "http://{{ hostvars['proxy'].public_ip | default(hostvars['proxy'].ansible_host) }}/"
+        method: GET
+        status_code: "{{ redmine_health_expected_codes }}"
+        return_content: no
+      register: redmine_health
+      retries: "{{ redmine_health_retries }}"
+      delay: "{{ redmine_health_delay }}"
+      until: redmine_health.status in redmine_health_expected_codes
+      changed_when: false
+    - name: Afficher les journaux récents du service Redmine
+      shell: |
+        docker service logs --raw --timestamps --tail {{ redmine_logs_tail }} redmine_redmine || true
+      register: redmine_service_logs
+      changed_when: false
+    - name: Montrer les journaux du service Redmine
+      debug:
+        var: redmine_service_logs.stdout_lines
+  rescue:
+    - name: Conserver le dernier résultat de santé Redmine
+      when: ansible_failed_result is defined
+      ansible.builtin.set_fact:
+        redmine_health: "{{ ansible_failed_result }}"
+
+    - name: Diagnostiquer l’échec du contrôle de santé Redmine
+      ansible.builtin.include_tasks: debug_health.yml
+    - name: Collecter les journaux du service Redmine en erreur
+      shell: |
+        docker service logs --raw --timestamps --tail {{ redmine_logs_tail }} redmine_redmine || true
+      register: redmine_service_logs_failed
+      changed_when: false
+    - name: Afficher les journaux Redmine en erreur
+      debug:
+        var: redmine_service_logs_failed.stdout_lines
+
+    - name: Échec Redmine non disponible
+      ansible.builtin.fail:
+        msg: >-
+          Redmine ne répond pas avec l’un des codes attendus {{ redmine_health_expected_codes }}.
+          Voir les détails ci-dessus.
   when: inventory_hostname == groups['manager'][0]
