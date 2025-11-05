@@ -1,77 +1,230 @@
 ---
-- name: Créer le répertoire de monitoring
-  file:
-    path: /opt/monitoring
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
+- name: Configuration du monitoring
+  become: yes
+  block:
+    # NETTOYAGE ET PRÉPARATION
+    - name: Vérifier et réparer dpkg
+      shell: |
+        dpkg --configure -a
+        apt-get update --fix-missing
+      changed_when: false
+      ignore_errors: yes
 
-- name: Copier la configuration Prometheus
-  template:
-    src: prometheus.yml.j2
-    dest: /opt/monitoring/prometheus.yml
-    mode: '0644'
+    - name: Nettoyer les paquets cassés
+      apt:
+        autoremove: yes
+        autoclean: yes
 
-- name: Copier les règles d'alertes Prometheus
-  template:
-    src: alert.rules.yml.j2
-    dest: /opt/monitoring/alert.rules.yml
-    mode: '0644'
+    - name: Mettre à jour le cache APT
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    
+    # INSTALLATION DES DÉPENDANCES
+    #- name: Installer Docker et Docker Compose
+    #  apt:
+    #    name:
+    #      - docker.io
+    #      - docker-compose
+    #      - python3-docker
+    #    state: present
+    #    update_cache: yes
 
-- name: Copier la configuration Grafana datasource
-  template:
-    src: grafana-datasource.yml.j2
-    dest: /opt/monitoring/grafana-datasource.yml
-    mode: '0644'
+    - name: S'assurer que Docker est démarré
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # CRÉATION DES RÉPERTOIRES
+    - name: Vérifier si /opt existe
+      stat:
+        path: /opt
+      register: opt_exists
+      become: yes
+
+    - name: Afficher le résultat
+      debug:
+        msg: "/opt existe: {{ opt_exists.stat.exists }}"
+    - name: Créer le répertoire /opt si nécessaire
+      file:
+        path: /opt
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: not opt_exists.stat.exists
+
+    - name: Créer le répertoire de monitoring
+      file:
+        path: /opt/monitoring
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      register: monitoring_dir
+
+    - name: Vérifier que le répertoire a été créé
+      debug:
+        msg: "Répertoire monitoring créé: {{ monitoring_dir.changed }}"
+
+    # DÉPLOIEMENT DES CONFIGURATIONS
+    - name: Copier la configuration Prometheus
+      template:
+        src: prometheus.yml.j2
+        dest: /opt/monitoring/prometheus.yml
+        mode: '0644'
+      notify: restart monitoring stack
+
+    - name: Copier les règles d'alertes Prometheus
+      template:
+        src: alert.rules.yml.j2
+        dest: /opt/monitoring/alert.rules.yml
+        mode: '0644'
+      notify: restart monitoring stack
+
+    - name: Copier la configuration Grafana datasource
+      template:
+        src: grafana-datasource.yml.j2
+        dest: /opt/monitoring/grafana-datasource.yml
+        mode: '0644'
+      notify: restart monitoring stack
 
 
-- name: Copier la configuration Alertmanager
-  template:
-    src: alertmanager.yml.j2
-    dest: /opt/monitoring/alertmanager.yml
-    mode: '0644'
+    - name: Copier la configuration Alertmanager
+      template:
+        src: alertmanager.yml.j2
+        dest: /opt/monitoring/alertmanager.yml
+        mode: '0644'
+      notify: restart monitoring stack
 
-- name: Copier les règles d'alertes Prometheus
-  template:
-    src: alert.rules.yml.j2
-    dest: /opt/monitoring/alert.rules.yml
-    mode: '0644'
+    - name: Copier les règles d'alertes Prometheus
+      template:
+        src: alert.rules.yml.j2
+        dest: /opt/monitoring/alert.rules.yml
+        mode: '0644'
+      notify: restart monitoring stack
 
-- name: Copier la configuration Docker Compose du monitoring
-  template:
-    src: docker-compose.yml.j2
-    dest: /opt/monitoring/docker-compose.yml
-    mode: '0644'
+    - name: Copier la configuration Docker Compose du monitoring
+      template:
+        src: docker-compose.yml.j2
+        dest: /opt/monitoring/docker-compose.yml
+        mode: '0644'
+      notify: restart monitoring stack
 
-- name: Lancer le stack de monitoring
-  shell: docker compose -f /opt/monitoring/docker-compose.yml up -d
-  args:
-    chdir: /opt/monitoring
+    # GESTION DE LA STACK
+    - name: Arrêter la stack existante si config modifiée
+      shell: docker compose down
+      args:
+        chdir: /opt/monitoring
+      #when: docker_compose_config is changed
+      ignore_errors: yes
 
-- name: Vérifier que Prometheus fonctionne
-  uri:
-    url: "http://localhost:9090/-/healthy"
-    method: GET
-    status_code: 200
-  register: prometheus_health
-  retries: 5
-  delay: 5
-  until: prometheus_health.status == 200
+    #- name: Pull des images Docker
+    #  shell: docker compose pull
+    #  args:
+    #    chdir: /opt/monitoring
 
-- name: Vérifier que Grafana fonctionne
-  uri:
-    url: "http://localhost:3000/login"
-    method: GET
-    status_code: 200
-  register: grafana_health
-  retries: 5
-  delay: 5
-  until: grafana_health.status == 200
+    - name: Lancer la stack de monitoring
+      shell: docker compose up -d
+      args:
+        chdir: /opt/monitoring
+      register: compose_up
 
-- name: Afficher les URLs d'accès
-  debug:
-    msg:
-      - " Prometheus disponible sur http://{{ (hostvars['monitoring'].ansible_host) }}:9090"
-      - " Grafana disponible sur http://{{ (hostvars['monitoring'].ansible_host) }}:3000 (admin / admin)"
-      - " Alertmanager disponible sur http://{{ (hostvars['monitoring'].ansible_host) }}:9093"
+    - name: Afficher le résultat du démarrage
+      debug:
+        var: compose_up.stdout_lines
+
+    # VÉRIFICATIONS
+    - name: Attendre le démarrage des conteneurs
+      pause:
+        seconds: 10
+
+    - name: Afficher l'état des conteneurs
+      debug:
+        var: compose_ps.stdout_lines
+
+    - name: Vérifier que Prometheus fonctionne
+      uri:
+        url: "http://localhost:9090/-/healthy"
+        method: GET
+        status_code: 200
+      register: prometheus_health
+      retries: 10
+      delay: 5
+      until: prometheus_health.status == 200
+      failed_when: false
+
+    - name: Afficher le statut de Prometheus
+      debug:
+        msg: "{{ 'OK' if prometheus_health.status == 200 else 'ÉCHEC' }}"
+
+    - name: Vérifier que Grafana fonctionne
+      uri:
+        url: "http://localhost:3000/api/health"
+        method: GET
+        status_code: 200
+      register: grafana_health
+      retries: 10
+      delay: 5
+      until: grafana_health.status == 200
+      failed_when: false
+
+    - name: Afficher le statut de Grafana
+      debug:
+        msg: "{{ 'OK' if grafana_health.status == 200 else 'ÉCHEC' }}"
+
+    - name: Vérifier que Alertmanager fonctionne
+      uri:
+        url: "http://localhost:9093/-/healthy"
+        method: GET
+        status_code: 200
+      register: alertmanager_health
+      retries: 10
+      delay: 5
+      until: alertmanager_health.status == 200
+      failed_when: false
+
+    - name: Afficher le statut d'Alertmanager
+      debug:
+        msg: "{{ 'OK' if alertmanager_health.status == 200 else 'ÉCHEC' }}"
+
+    # INFORMATIONS FINALES
+    - name: Afficher les URLs d'accès
+      debug:
+        msg:
+          - "=========================================="
+          - "✅ Stack monitoring déployée"
+          - "=========================================="
+          - ""
+          - "Accès local (sur le serveur monitoring):"
+          - "  Prometheus:    http://localhost:9090"
+          - "  Grafana:       http://localhost:3000 (admin/admin)"
+          - "  Alertmanager:  http://localhost:9093"
+          - ""
+          - "Accès depuis le proxy (IP interne):"
+          - "  Prometheus:    http://{{ hostvars['monitoring'].ansible_host }}:9090"
+          - "  Grafana:       http://{{ hostvars['monitoring'].ansible_host }}:3000"
+          - "  Alertmanager:  http://{{ hostvars['monitoring'].ansible_host }}:9093"
+          - ""
+          - "Accès depuis Internet (via Nginx):"
+          - "  Prometheus:    https://ficus-prometheus.duckdns.org"
+          - "  Grafana:       https://ficus-grafana.duckdns.org"
+          - ""
+          - "=========================================="
+
+    - name: Afficher les logs en cas d'échec
+      shell: docker compose logs --tail=50
+      args:
+        chdir: /opt/monitoring
+      register: compose_logs
+      changed_when: false
+      when: 
+        - prometheus_health.status|default(0) != 200 or 
+          grafana_health.status|default(0) != 200 or 
+          alertmanager_health.status|default(0) != 200
+
+    - name: Afficher les logs
+      debug:
+        var: compose_logs.stdout_lines
+      when: compose_logs.stdout_lines is defined

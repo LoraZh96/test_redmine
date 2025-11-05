@@ -7,7 +7,7 @@
 
 - name: Configurer le bastion
   hosts: bastion
-  become: true
+  become: yes
   vars_files:
     - group_vars/bastion.yml
   roles:
@@ -15,36 +15,36 @@
 
 - name: Configurer le proxy (Nginx + WAF + Fail2ban)
   hosts: proxy
-  become: true
+  become: yes
   roles:
     - proxy
 
 - name: Installer Docker sur tous les nœuds
   hosts: manager,workers,monitoring
-  become: true
+  become: yes
   roles:
     - docker
 
 - name: Initialiser le cluster Docker Swarm
   hosts: manager,workers
-  become: true
+  become: yes
   roles:
     - docker-swarm
 
-- name: Déployer Redmine (application + secrets + stack Docker)
-  hosts: manager
-  become: true
-  roles:
-    - redmine-app
-
 - name: Déployer le monitoring (Prometheus + Grafana + Alertmanager)
   hosts: monitoring
-  become: true
+  become: yes
   roles:
     - monitoring
 
 - name: Déployer Node Exporter sur tous les serveurs
   hosts: all
-  become: true
+  become: yes
   roles:
     - node-exporter
+
+- name: Déployer Redmine (application + secrets + stack Docker)
+  hosts: manager
+  become: yes
+  roles:
+    - redmine-app

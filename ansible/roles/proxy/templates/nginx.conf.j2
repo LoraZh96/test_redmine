@@ -31,7 +31,7 @@ http {
     modsecurity_rules_file /etc/nginx/modsecurity.conf;
 
     # --- Reverse Proxy vers Redmine ---
-	
+    
     server {
         listen 80;
         server_name ficus-redmine.duckdns.org;
@@ -86,7 +86,7 @@ http {
         error_log  /var/log/nginx/grafana_error.log;
 
         location / {
-            proxy_pass http://{{ hostvars['monitoring'].ansible_host }}:3001;
+            proxy_pass http://{{ hostvars['monitoring'].ansible_host }}:3000;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
