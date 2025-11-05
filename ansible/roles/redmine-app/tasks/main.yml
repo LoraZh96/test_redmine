@@ -29,20 +29,10 @@
     mode: '0755'
   when: inventory_hostname == groups['manager'][0]
 
-# Crée le répertoire de déploiement sur le workers
-- name: Créer le répertoire /var/lib/redmine sur toutes les machine
-  file:
-    path: /var/lib/redmine
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  when: inventory_hostname in groups['workers']
-
-# Copie le docker-compose.yml prêt depuis le projet local vers le m
+# Copie le docker-compose.yml prêt depuis le projet local vers le manager
 - name: Copier le docker-compose.yml prêt vers le manager
   copy:
-    src: "{{ playbook_dir }}/../files-app/docker-compose.yml"
+    src: "{{ playbook_dir }}/redmine/docker-compose.yml"
     dest: "{{ redmine_dir }}/docker-compose.yml"
     owner: root
     group: root
@@ -53,7 +43,7 @@
 # Copie le script d'entrée Redmine sur le manager
 - name: Copier l'entrypoint Redmine sur le manager
   copy:
-    src: "{{ playbook_dir }}/redmine/entrypoint.sh"
+    src: "{{ playbook_dir }}/redmine/docker/entrypoint.sh"
     dest: "{{ redmine_dir }}/entrypoint.sh"
     owner: root
     group: root
@@ -103,16 +93,6 @@
   args:
     executable: /bin/bash
   no_log: "{{ redmine_hide_sensitive_logs }}"
-  when: inventory_hostname == groups['manager'][0]
-
-# Crée le config Docker Swarm pour entrypoint.sh s'il n'existe pas
-- name: Créer le config redmine_entrypoint pour Docker Swarm
-  shell: |
-    if ! docker config ls --format '{{"{{.Name}}"}}' | grep -q "^re
-      docker config create redmine_entrypoint /var/lib/redmine/entr
-    fi
-  args:
-    executable: /bin/bash
   when: inventory_hostname == groups['manager'][0]
 
 # Supprime l'ancien stack Redmine s'il existe (pour forcer un déploiement propre)
