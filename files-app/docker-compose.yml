@@ -1,0 +1,81 @@
+services:
+  redmine:
+    image: "${REDMINE_IMAGE:-ghcr.io/redmineproject/redmine-off}"  
+    entrypoint: ["/usr/src/redmine/entrypoint.sh"]
+    command: ["bundle", "exec", "rails", "server", "-b","0.0.0.0", 
+"-e","production"]
+    volumes:
+      - /var/lib/redmine/entrypoint.sh:/usr/src/redmine/entrypoint.sh
+      - redmine_files:/usr/src/redmine/files
+    environment:
+      RAILS_ENV: production
+      REDMINE_LANG: en
+      RUN_DB_MIGRATIONS: "1"
+      REDMINE_DB_POSTGRES_FILE: /run/secrets/REDMINE_DB_POSTGRES   
+      REDMINE_DB_PORT_FILE: /run/secrets/REDMINE_DB_PORT
+      REDMINE_DB_USERNAME_FILE: /run/secrets/REDMINE_DB_USERNAME   
+      REDMINE_DB_PASSWORD_FILE: /run/secrets/REDMINE_DB_PASSWORD   
+      REDMINE_DB_DATABASE_FILE: /run/secrets/REDMINE_DB_DATABASE   
+      REDMINE_DB_ENCODING_FILE: /run/secrets/REDMINE_DB_ENCODING   
+      REDMINE_DB_SSLMODE_FILE: /run/secrets/REDMINE_DB_SSLMODE     
+      REDMINE_SECRET_KEY_BASE_FILE: /run/secrets/REDMINE_SECRET_KEY_BASE
+    secrets:
+      - REDMINE_DB_POSTGRES
+      - REDMINE_DB_PORT
+      - REDMINE_DB_USERNAME
+      - REDMINE_DB_PASSWORD
+      - REDMINE_DB_DATABASE
+      - REDMINE_DB_ENCODING
+      - REDMINE_DB_SSLMODE
+      - REDMINE_SECRET_KEY_BASE
+    networks:
+      - redmine_net
+      - app_net
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - "node.role == worker"
+      update_config:
+        order: start-first
+        parallelism: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: ingress
+
+configs:
+  redmine_entrypoint:
+    external: true
+
+secrets:
+  REDMINE_DB_POSTGRES:
+    external: true
+  REDMINE_DB_PORT:
+    external: true
+  REDMINE_DB_USERNAME:
+    external: true
+  REDMINE_DB_PASSWORD:
+    external: true
+  REDMINE_DB_DATABASE:
+    external: true
+  REDMINE_DB_ENCODING:
+    external: true
+  REDMINE_DB_SSLMODE:
+    external: true
+  REDMINE_SECRET_KEY_BASE:
+    external: true
+
+volumes:
+  redmine_files:
+    driver: local
+
+networks:
+  redmine_net:
+    driver: overlay
+  app_net:
+    external: true
