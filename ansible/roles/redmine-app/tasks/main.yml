@@ -6,11 +6,16 @@
 - name: Définir les variables Redmine DB
   no_log: "{{ redmine_hide_sensitive_logs }}"
   ansible.builtin.set_fact:
-    redmine_db_host: "{{ hostvars[groups['manager'][0]].get('rds_endpoint', '') }}"
+    redmine_manager_hostvars: "{{ hostvars.get(groups.get('manager', [inventory_hostname])[0], {}) }}"
+    redmine_db_host: >-
+      {{
+        redmine_manager_hostvars.get('rds_endpoint',
+          lookup('env', 'REDMINE_DB_POSTGRES') | default('', true))
+      }}
     redmine_db_user: "{{ lookup('env', 'REDMINE_DB_USERNAME') | default('', true) }}"
     redmine_db_password: "{{ lookup('env', 'REDMINE_DB_PASSWORD') | default('', true) }}"
     redmine_db_port: "{{ lookup('env', 'REDMINE_DB_PORT') | default('5432', true) }}"
-    redmine_db_database: "{{ lookup('env', 'REDMINE_DB_DATABASE') | default(hostvars[groups['manager'][0]].get('db_name', 'redmine'), true) }}"
+    redmine_db_database: "{{ lookup('env', 'REDMINE_DB_DATABASE') | default(redmine_manager_hostvars.get('db_name', 'redmine'), true) }}"
     redmine_db_encoding: "{{ lookup('env', 'REDMINE_DB_ENCODING') | default('utf8', true) }}"
     redmine_db_sslmode: "{{ lookup('env', 'REDMINE_DB_SSLMODE') | default('require', true) }}"
 
