@@ -7,7 +7,9 @@ groups:
         labels:
           severity: critical
         annotations:
+          {% raw %}
           summary: "Instance {{ $labels.instance }} est down"
+          {% endraw %}
           description: "Le node_exporter ne répond plus depuis 2 minutes"
 
       - alert: DatabaseUnavailable
@@ -17,5 +19,5 @@ groups:
           severity: warning
         annotations:
           summary: "Espace disque faible pour RDS"
-          description: "L'instance RDS a moins de 1 Go d’espace libre"
+          description: "L'instance RDS a moins de 1 Go d'espace libre"
 

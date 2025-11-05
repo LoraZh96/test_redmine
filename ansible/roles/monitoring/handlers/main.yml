@@ -1,0 +1,4 @@
+- name: restart monitoring stack
+  shell: docker compose restart
+  args:
+    chdir: /opt/monitoring
