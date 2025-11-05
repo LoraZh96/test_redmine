@@ -44,7 +44,7 @@
     - node-exporter
 
 - name: Déployer Redmine (application + secrets + stack Docker)
-  hosts: manager,workers
+  hosts: manager
   become: yes
   roles:
     - redmine-app
