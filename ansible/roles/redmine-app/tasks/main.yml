@@ -43,7 +43,7 @@
 # Copie le script d'entrée Redmine sur le manager
 - name: Copier l'entrypoint Redmine sur le manager
   copy:
-    src: "{{ playbook_dir }}/redmine/entrypoint.sh"
+    src: "{{ playbook_dir }}/redmine/docker/entrypoint.sh"
     dest: "{{ redmine_dir }}/entrypoint.sh"
     owner: root
     group: root
