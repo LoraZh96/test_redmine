@@ -11,3 +11,7 @@ redmine_health_expected_codes:
 redmine_health_retries: 15
 redmine_health_delay: 10
 redmine_logs_tail: 100
+redmine_health_scheme: "http"
+redmine_health_host: ""
+redmine_health_path: "/"
+redmine_health_host_header: ""
