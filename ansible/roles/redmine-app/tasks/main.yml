@@ -142,4 +142,10 @@
     var: redmine_status.stdout_lines
   when: inventory_hostname == groups['manager'][0]
 
+
+- name: Vérifier que Redmine répond dans le Swarm
+  command: docker service ps redmine_redmine
+  register: redmine_ps
+  changed_when: false
+  when: inventory_hostname == groups['manager'][0]
 # (Ancien contrôle HTTP via reverse proxy supprimé)
