@@ -1,0 +1,17 @@
+---
+# Hide sensitive variables by default (credentials, secrets)
+redmine_hide_sensitive_logs: true
+redmine_health_expected_codes:
+  - 200
+  - 301
+  - 302
+  - 303
+  - 307
+  - 401
+redmine_health_retries: 15
+redmine_health_delay: 10
+redmine_logs_tail: 100
+redmine_health_scheme: "http"
+redmine_health_host: "{{ hostvars['proxy'].ansible_host }}"
+redmine_health_path: "/"
+redmine_health_host_header: ""
