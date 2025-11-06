@@ -19,16 +19,6 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
-    
-    # INSTALLATION DES DÉPENDANCES
-    #- name: Installer Docker et Docker Compose
-    #  apt:
-    #    name:
-    #      - docker.io
-    #      - docker-compose
-    #      - python3-docker
-    #    state: present
-    #    update_cache: yes
 
     - name: S'assurer que Docker est démarré
       systemd:
@@ -120,25 +110,28 @@
       #when: docker_compose_config is changed
       ignore_errors: yes
 
-    #- name: Pull des images Docker
-    #  shell: docker compose pull
-    #  args:
-    #    chdir: /opt/monitoring
-
     - name: Lancer la stack de monitoring
       shell: docker compose up -d
       args:
         chdir: /opt/monitoring
       register: compose_up
 
-    - name: Afficher le résultat du démarrage
-      debug:
-        var: compose_up.stdout_lines
+   # - name: Afficher le résultat du démarrage
+     # debug:
+       # var: compose_up.stdout_lines
 
     # VÉRIFICATIONS
     - name: Attendre le démarrage des conteneurs
       pause:
         seconds: 10
+
+    - name: Lister les conteneurs de la stack
+      shell: docker compose ps
+      args:
+        chdir: /opt/monitoring
+      register: compose_ps
+      changed_when: false
+      failed_when: false
 
     - name: Afficher l'état des conteneurs
       debug:
@@ -189,6 +182,67 @@
       debug:
         msg: "{{ 'OK' if alertmanager_health.status == 200 else 'ÉCHEC' }}"
 
+     # IMPORTATION AUTOMATIQUE D'UN DASHBOARD GRAFANA
+    - name: Télécharger les dashboards Grafana depuis grafana.com
+      uri:
+        url: "https://grafana.com/api/dashboards/{{ item.id }}/revisions/latest/download"
+        method: GET
+        return_content: yes
+      register: grafana_dashboards
+      loop:
+        - { id: 1860 }  # Node Exporter Full
+      retries: 3
+      delay: 3
+      when: grafana_health.status == 200
+
+    - name: Importer les dashboards Grafana dans l'instance locale
+      uri:
+        url: "http://localhost:3000/api/dashboards/import"
+        method: POST
+        user: admin
+        password: admin
+        force_basic_auth: yes
+        body_format: json
+        body: |
+          {
+            "dashboard": {{ (grafana_dashboards.results
+              | selectattr('item.id', 'equalto', item.id)
+              | first).content
+              | from_json
+              | to_json }},
+           "overwrite": true,
+           "inputs": [
+              {
+                "name": "DS_PROMETHEUS",
+                "type": "datasource",
+                "pluginId": "prometheus",
+                "value": "Prometheus"
+              },
+              {
+                "name": "DS_THEMIS",
+                "type": "datasource",
+                "pluginId": "prometheus",
+                "value": "Prometheus"
+              }
+            ],
+            "folderId": 0
+          }
+        status_code: 200
+      loop:
+        - { id: 1860 }
+      when: grafana_health.status == 200
+      register: grafana_import
+      retries: 5
+      delay: 5
+      until: grafana_import.status == 200
+      tags: grafana
+
+    - name: Afficher le résultat de l'importation des dashboards
+      debug:
+        msg: "✅ Dashboards Grafana importés avec succès."
+      when: grafana_import is succeeded
+
+
     # INFORMATIONS FINALES
     - name: Afficher les URLs d'accès
       debug:
@@ -228,3 +282,26 @@
       debug:
         var: compose_logs.stdout_lines
       when: compose_logs.stdout_lines is defined
+
+    - name: Récupérer la configuration Telegram depuis l'environnement
+      set_fact:
+        telegram_bot_token_env: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) }}"
+        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) }}"
+      no_log: true
+
+    - name: Envoyer un message de confirmation à Telegram
+      uri:
+        url: "https://api.telegram.org/bot{{ telegram_bot_token_env }}/sendMessage"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          chat_id: "{{ telegram_chat_id_env }}"
+          text: "✅ Déploiement du monitoring terminé avec succès !"
+      register: telegram_test
+      retries: 3
+      delay: 5
+      until: telegram_test.status == 200
+      when:
+        - telegram_bot_token_env | length > 0
+        - telegram_chat_id_env | length > 0
+      no_log: true
