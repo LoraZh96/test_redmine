@@ -15,7 +15,7 @@
         url: "https://www.ovh.com/nic/update?system=dyndns&hostname={{ item }}.{{ domain }}&myip={{ proxy_ip }}"
         method: GET
         user: "{{ lookup('env', 'DYNHOST_USER') }}"
-        password: "${{ lookup('env', 'DYNHOST_PASSWORD') }}"
+        password: "{{ lookup('env', 'DYNHOST_PASSWORD') }}"
         force_basic_auth: yes
         status_code: [200, 201]
       loop: "{{ subdomains }}"
