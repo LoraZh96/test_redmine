@@ -278,16 +278,16 @@
     - name: Récupérer la configuration Telegram depuis l'environnement
       set_fact:
         telegram_bot_token_env: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) }}"
-        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) }}"
+        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('0', true) | int }}"
       no_log: true
 
     - name: Envoyer un message de confirmation à Telegram
       uri:
-        url: "https://api.telegram.org/bot{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}/sendMessage"
+        url: "https://api.telegram.org/bot{{ telegram_bot_token_env }}/sendMessage"
         method: POST
         body_format: form-urlencoded
         body:
-          chat_id: "{{ telegram_chat_id_env }}"
+          chat_id: {{ (telegram_chat_id_env | default('0')) | int }}
           text: "✅ Déploiement du monitoring terminé avec succès !"
       register: telegram_test
       retries: 3

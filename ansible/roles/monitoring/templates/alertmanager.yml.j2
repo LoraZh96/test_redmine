@@ -11,7 +11,7 @@ receivers:
   - name: 'telegram'
     telegram_configs:
       - bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"
-        chat_id: "{{ lookup('env', 'TELEGRAM_CHAT_ID') }}"
+        chat_id: {{ lookup('env', 'TELEGRAM_CHAT_ID') | int }}
         parse_mode: 'Markdown'
         send_resolved: true
         message: |
