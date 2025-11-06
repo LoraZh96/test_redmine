@@ -42,6 +42,17 @@ http {
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
+    # --- Redmine upstream (workers) ---
+    upstream redmine_upstream {
+        least_conn;
+{% for worker in groups['workers'] | default([]) %}
+        server {{ hostvars[worker].ansible_host }}:{{ redmine_backend_port }};
+{% endfor %}
+{% if (groups['workers'] | default([])) | length == 0 %}
+        server {{ redmine_backend_host }}:{{ redmine_backend_port }};
+{% endif %}
+    }
+
     # --- Reverse Proxy vers Redmine ---
     
     server {
