@@ -1,17 +1,22 @@
+{% set telegram_bot_token = lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) %}
+{% set telegram_chat_id = lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) %}
+{% set telegram_enabled = telegram_bot_token | length > 0 and telegram_chat_id | length > 0 %}
+
 global:
   resolve_timeout: 1m
 
 route:
-  receiver: 'telegram'
+  receiver: '{{ "telegram" if telegram_enabled else "null" }}'
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 3h
 
 receivers:
+{% if telegram_enabled %}
   - name: 'telegram'
     telegram_configs:
-      - bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"
-        chat_id: {{ lookup('env', 'TELEGRAM_CHAT_ID') | int }}
+      - bot_token: "{{ telegram_bot_token }}"
+        chat_id: "{{ telegram_chat_id }}"
         parse_mode: 'Markdown'
         send_resolved: true
         message: |
@@ -24,3 +29,6 @@ receivers:
           *Description:* {{ .Annotations.description }}
           {{ end }}
           {% endraw %}
+{% else %}
+  - name: 'null'
+{% endif %}

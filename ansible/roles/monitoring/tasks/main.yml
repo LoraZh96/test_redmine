@@ -125,6 +125,14 @@
       pause:
         seconds: 10
 
+    - name: Lister les conteneurs de la stack
+      shell: docker compose ps
+      args:
+        chdir: /opt/monitoring
+      register: compose_ps
+      changed_when: false
+      failed_when: false
+
     - name: Afficher l'état des conteneurs
       debug:
         var: compose_ps.stdout_lines
@@ -278,7 +286,7 @@
     - name: Récupérer la configuration Telegram depuis l'environnement
       set_fact:
         telegram_bot_token_env: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) }}"
-        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('0', true) | int }}"
+        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) }}"
       no_log: true
 
     - name: Envoyer un message de confirmation à Telegram
@@ -287,7 +295,7 @@
         method: POST
         body_format: form-urlencoded
         body:
-          chat_id: {{ (telegram_chat_id_env | default('0')) | int }}
+          chat_id: "{{ telegram_chat_id_env }}"
           text: "✅ Déploiement du monitoring terminé avec succès !"
       register: telegram_test
       retries: 3
