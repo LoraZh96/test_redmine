@@ -116,9 +116,9 @@
         chdir: /opt/monitoring
       register: compose_up
 
-    - name: Afficher le résultat du démarrage
-      debug:
-        var: compose_up.stdout_lines
+   # - name: Afficher le résultat du démarrage
+     # debug:
+       # var: compose_up.stdout_lines
 
     # VÉRIFICATIONS
     - name: Attendre le démarrage des conteneurs
@@ -177,7 +177,7 @@
      # IMPORTATION AUTOMATIQUE D'UN DASHBOARD GRAFANA
     - name: Télécharger les dashboards Grafana depuis grafana.com
       uri:
-        url: "https://api.telegram.org/bot{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}/sendMessage"
+        url: "https://grafana.com/api/dashboards/{{ item.id }}/revisions/latest/download"
         method: GET
         return_content: yes
       register: grafana_dashboards
@@ -283,7 +283,7 @@
 
     - name: Envoyer un message de confirmation à Telegram
       uri:
-        url: "https://api.telegram.org/bot{{ telegram_bot_token_env }}/sendMessage"
+        url: "https://api.telegram.org/bot{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}/sendMessage"
         method: POST
         body_format: form-urlencoded
         body:
