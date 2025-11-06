@@ -19,16 +19,6 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
-    
-    # INSTALLATION DES DÉPENDANCES
-    #- name: Installer Docker et Docker Compose
-    #  apt:
-    #    name:
-    #      - docker.io
-    #      - docker-compose
-    #      - python3-docker
-    #    state: present
-    #    update_cache: yes
 
     - name: S'assurer que Docker est démarré
       systemd:
@@ -119,11 +109,6 @@
         chdir: /opt/monitoring
       #when: docker_compose_config is changed
       ignore_errors: yes
-
-    #- name: Pull des images Docker
-    #  shell: docker compose pull
-    #  args:
-    #    chdir: /opt/monitoring
 
     - name: Lancer la stack de monitoring
       shell: docker compose up -d
@@ -228,3 +213,17 @@
       debug:
         var: compose_logs.stdout_lines
       when: compose_logs.stdout_lines is defined
+
+    - name: Envoyer un message de confirmation à Telegram
+      uri:
+        url: "https://api.telegram.org/bot{{ telegram_bot_token }}/sendMessage"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          chat_id: "{{ lookup('env', 'TELEGRAM_CHAT_ID') }}"
+          text: "✅ Déploiement du monitoring terminé avec succès !"
+      register: telegram_test
+      retries: 3
+      delay: 5
+      until: telegram_test.status == 200
+      when: telegram_bot_token is defined and telegram_chat_id is defined
