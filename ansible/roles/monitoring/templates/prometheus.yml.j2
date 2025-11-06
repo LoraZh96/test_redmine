@@ -13,6 +13,16 @@ scrape_configs:
           - '{{ hostvars['monitoring'].ansible_host }}:9100'
           - '{{ hostvars['fck_nat'].private_ip }}:9100'
 
+  - job_name: 'cadvisor'
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+  {% set cadvisor_hosts = (groups['manager'] | default([])) + (groups['workers'] | default([])) %}
+  {% for host in cadvisor_hosts %}
+      - "{{ (hostvars[host].private_ip | default(hostvars[host].ansible_host)) }}:8080"
+  {% endfor %}
+
 alerting:
   alertmanagers:
     - static_configs:
