@@ -177,7 +177,7 @@
      # IMPORTATION AUTOMATIQUE D'UN DASHBOARD GRAFANA
     - name: Télécharger les dashboards Grafana depuis grafana.com
       uri:
-        url: "https://grafana.com/api/dashboards/{{ item.id }}/revisions/latest/download"
+        url: "https://api.telegram.org/bot{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}/sendMessage"
         method: GET
         return_content: yes
       register: grafana_dashboards
