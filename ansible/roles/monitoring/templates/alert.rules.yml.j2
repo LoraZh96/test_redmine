@@ -1,5 +1,5 @@
 groups:
-  - name: instance-health
+  - name: critical-alerts
     rules:
       - alert: InstanceDown
         expr: up == 0
@@ -8,16 +8,65 @@ groups:
           severity: critical
         annotations:
           {% raw %}
-          summary: "Instance {{ $labels.instance }} est down"
+          summary: "Instance {{ $labels.instance }} est injoignable"
+          description: "L'exporter {{ $labels.job }} ne répond plus depuis 2 minutes sur {{ $labels.instance }}"
           {% endraw %}
-          description: "Le node_exporter ne répond plus depuis 2 minutes"
 
-      - alert: DatabaseUnavailable
-        expr: aws_rds_free_storage_space_average < 1000000000
-        for: 1m
+      - alert: DiskAlmostFull
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 10     
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          {% raw %}
+          summary: "Espace disque faible sur {{ $labels.instance }}"
+          description: "Moins de 10% d'espace disque disponible sur le volume {{ $labels.mountpoint }}."
+          {% endraw %}
+
+  - name: warning-alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: avg by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) * 100 > 85
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Espace disque faible pour RDS"
-          description: "L'instance RDS a moins de 1 Go d'espace libre"
+          {% raw %}
+          summary: "Utilisation CPU élevée sur {{ $labels.instance }}"
+          description: "La charge CPU moyenne dépasse 85% depuis plus de 5 minutes."
+          {% endraw %}
 
+      - alert: LowMemory
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          {% raw %}
+          summary: "Mémoire faible sur {{ $labels.instance }}"
+          description: "Il reste moins de 10% de mémoire disponible."
+          {% endraw %}
+
+      - alert: RDSLowStorage
+        expr: aws_rds_free_storage_space_average < 1e9
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          {% raw %}
+          summary: "Espace disque faible pour RDS"
+          description: "L'instance RDS a moins de 1 Go d'espace libre."
+          {% endraw %}
+
+  - name: info-alerts
+    rules:
+      - alert: PrometheusRecentlyRestarted
+        expr: time() - process_start_time_seconds{job="prometheus"} < 600
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          {% raw %}
+          summary: "Prometheus a été redémarré récemment"
+          description: "Le processus Prometheus a redémarré il y a moins de 10 minutes."
+          {% endraw %}
