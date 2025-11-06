@@ -1,0 +1,50 @@
+---
+- name: Installer Certbot et le plugin Nginx
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+
+- name: Créer le répertoire pour le challenge ACME
+  file:
+    path: /var/www/certbot
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Vérifier si les certificats existent déjà
+  stat:
+    path: "/etc/letsencrypt/live/{{ item }}/fullchain.pem"
+  register: cert_exists
+  loop:
+    - redmine.ficus.ovh
+    - prometheus.ficus.ovh
+    - grafana.ficus.ovh
+
+- name: Obtenir les certificats SSL avec Certbot (première fois)
+  command: >
+    certbot certonly --nginx
+    --non-interactive
+    --agree-tos
+    --email {{ ssl_admin_email }}
+    -d {{ item.item }}
+  loop: "{{ cert_exists.results }}"
+  when: not item.stat.exists
+  register: certbot_result
+
+- name: Configurer le renouvellement automatique
+  cron:
+    name: "Renouvellement certificats Let's Encrypt"
+    minute: "0"
+    hour: "3"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+    user: root
+
+- name: Recharger Nginx après obtention des certificats
+  systemd:
+    name: nginx
+    state: reloaded
+  when: certbot_result.change

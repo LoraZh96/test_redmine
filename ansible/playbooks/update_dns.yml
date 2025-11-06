@@ -1,0 +1,22 @@
+- name: Mettre à jour les enregistrements DNS OVH
+  hosts: localhost
+  gather_facts: no
+  vars:
+    domain: "ficus.ovh"
+    proxy_ip: "{{ hostvars['proxy'].public_ip }}"
+    subdomains:
+      - "redmine"
+      - "prometheus"
+      - "grafana"
+    
+  tasks:
+    - name: Mettre à jour chaque sous-domaine via DynHost
+      uri:
+        url: "https://www.ovh.com/nic/update?system=dyndns&hostname={{ item }}.{{ domain }}&myip={{ proxy_ip }}"
+        method: GET
+        user: "{{ dynhost_user }}"
+        password: "{{ dynhost_password }}"
+        force_basic_auth: yes
+        status_code: [200, 201]
+      loop: "{{ subdomains }}"
+      no_log: true  # Pour ne pas afficher les credentials
