@@ -22,7 +22,7 @@
   tasks:
     - name: Pause pour propagation DNS
       ansible.builtin.pause:
-        seconds: 90
+        seconds: 10
         prompt: "Attente de la propagation DNS..."
   tags: [dns]
 
@@ -60,4 +60,5 @@
   hosts: manager
   become: yes
   roles:
+
     - redmine-app
