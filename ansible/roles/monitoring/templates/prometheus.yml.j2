@@ -13,11 +13,6 @@ scrape_configs:
           - '{{ hostvars['monitoring'].ansible_host }}:9100'
           - '{{ hostvars['fck_nat'].private_ip }}:9100'
 
-  - job_name: 'cloudwatch_exporter'
-    static_configs:
-      - targets:
-          - 'cloudwatch-exporter:9106'
-
 alerting:
   alertmanagers:
     - static_configs:
