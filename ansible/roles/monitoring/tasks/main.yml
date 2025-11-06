@@ -275,16 +275,25 @@
         var: compose_logs.stdout_lines
       when: compose_logs.stdout_lines is defined
 
+    - name: Récupérer la configuration Telegram depuis l'environnement
+      set_fact:
+        telegram_bot_token_env: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) }}"
+        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) }}"
+      no_log: true
+
     - name: Envoyer un message de confirmation à Telegram
       uri:
-        url: "https://api.telegram.org/bot{{ telegram_bot_token }}/sendMessage"
+        url: "https://api.telegram.org/bot{{ telegram_bot_token_env }}/sendMessage"
         method: POST
         body_format: form-urlencoded
         body:
-          chat_id: "{{ lookup('env', 'TELEGRAM_CHAT_ID') }}"
+          chat_id: "{{ telegram_chat_id_env }}"
           text: "✅ Déploiement du monitoring terminé avec succès !"
       register: telegram_test
       retries: 3
       delay: 5
       until: telegram_test.status == 200
-      when: telegram_bot_token is defined and telegram_chat_id is defined
+      when:
+        - telegram_bot_token_env | length > 0
+        - telegram_chat_id_env | length > 0
+      no_log: true

@@ -17,11 +17,15 @@ scrape_configs:
     metrics_path: /metrics
     scheme: http
     static_configs:
+{% set cadvisor_hosts = (groups['manager'] | default([])) + (groups['workers'] | default([])) %}
+{% if cadvisor_hosts %}
       - targets:
-  {% set cadvisor_hosts = (groups['manager'] | default([])) + (groups['workers'] | default([])) %}
-  {% for host in cadvisor_hosts %}
-      - "{{ (hostvars[host].private_ip | default(hostvars[host].ansible_host)) }}:8080"
-  {% endfor %}
+{% for host in cadvisor_hosts %}
+          - "{{ (hostvars[host].private_ip | default(hostvars[host].ansible_host)) }}:8080"
+{% endfor %}
+{% else %}
+      - targets: []
+{% endif %}
 
 alerting:
   alertmanagers:
