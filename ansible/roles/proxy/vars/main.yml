@@ -23,3 +23,10 @@ redmine_backend_port: 3000
 # Activer ou désactiver ModSecurity (utile pour debug)
 modsecurity_enabled: true
 
+# Version CRS Mod Security
+crs_version: "v4.0.0"
+
+# Informations OVH
+ssl_admin_email: "admin@ficus.ovh"
+ssl_domain: "ficus.ovh"
+ssl_enabled: true

@@ -25,6 +25,37 @@ resource "aws_security_group" "sec-grp-app" {
   vpc_id = aws_vpc.main.id
 }
 
+resource "aws_security_group" "fck-nat-sg" {
+  name        = "fck-nat-sg"
+  description = "Security group for fck-nat instances"
+  vpc_id      = aws_vpc.main.id
+}
+
+################# fck-nat-sg in #################
+
+# Rule in for traffic
+resource "aws_security_group_rule" "fck-nat_from_private" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = -1
+  security_group_id = aws_security_group.fck-nat-sg.id
+  cidr_blocks       = ["10.0.11.0/24", "10.0.12.0/24"]
+  description       = "all from private"
+}
+
+################# fck-nat-sg out #################
+
+# Rule in for traffic
+resource "aws_security_group_rule" "private_to_internet" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = -1
+  security_group_id = aws_security_group.fck-nat-sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "private to all"
+}
 
 ################# sec-grp-bastion in #################
 
@@ -52,6 +83,17 @@ resource "aws_security_group_rule" "bastion_from_monitor" {
 
 
 ################# sec-grp-bastion out #################
+
+# Rule to fck-nat
+resource "aws_security_group_rule" "bastion_to_fck-nat" {
+  type                     = "egress"
+  from_port                = 4242
+  to_port                  = 4242
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.sec-grp-bastion.id
+  source_security_group_id = aws_security_group.fck-nat-sg.id
+  description              = "4242 to fuck-nat"
+}
 
 # Rule to revproxy
 resource "aws_security_group_rule" "bastion_to_revproxy" {
@@ -295,6 +337,17 @@ resource "aws_security_group_rule" "monitor_from_monitor" {
 }
 
 ################# sec-grp-monitor out #################
+
+# Rule Supervision to fck-nat
+resource "aws_security_group_rule" "monitor_to_fck-nat" {
+  type                     = "egress"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.sec-grp-monitor.id
+  source_security_group_id = aws_security_group.fck-nat-sg.id
+  description              = "Supervision to fck-nat"
+}
 
 # Rule Supervision to Bastion
 resource "aws_security_group_rule" "monitor_to_bastion" {

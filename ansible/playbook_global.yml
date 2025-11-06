@@ -13,6 +13,19 @@
   roles:
     - bastion
 
+- import_playbook: playbooks/update_dns.yml
+  tags: [dns]
+
+- name: Attendre la propagation DNS (90 secondes)
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Pause pour propagation DNS
+      ansible.builtin.pause:
+        seconds: 10
+        prompt: "Attente de la propagation DNS..."
+  tags: [dns]
+
 - name: Configurer le proxy (Nginx + WAF + Fail2ban)
   hosts: proxy
   become: yes
@@ -38,7 +51,7 @@
     - monitoring
 
 - name: Déployer Node Exporter sur tous les serveurs
-  hosts: all
+  hosts: all:!fck_nat
   become: yes
   roles:
     - node-exporter
@@ -47,4 +60,5 @@
   hosts: manager
   become: yes
   roles:
+
     - redmine-app

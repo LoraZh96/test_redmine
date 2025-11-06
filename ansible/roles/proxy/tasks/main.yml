@@ -11,7 +11,41 @@
     state: present
     update_cache: true
 
-- name: Supprimer l’ancien dossier CRS s’il existe
+- name: Créer le répertoire pour les certificats SSL
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Générer un certificat auto-signé pour ficus.ovh
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout /etc/nginx/ssl/privkey.pem
+    -out /etc/nginx/ssl/fullchain.pem
+    -subj "/C=FR/ST=France/L=Paris/O=Ficus/CN=*.ficus.ovh"
+    -addext "subjectAltName=DNS:ficus.ovh,DNS:*.ficus.ovh"
+  args:
+    creates: /etc/nginx/ssl/fullchain.pem
+
+- name: Définir les permissions du certificat
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - /etc/nginx/ssl/fullchain.pem
+    - /etc/nginx/ssl/privkey.pem
+
+- name: Définir SSL comme activé
+  ansible.builtin.set_fact:
+    ssl_enabled: true
+
+# --- COnfiguration Modsecurity et Waf ---
+
+- name: Supprimer l'ancien dossier CRS s'il existe
   ansible.builtin.file:
     path: /etc/modsecurity/crs
     state: absent
@@ -113,13 +147,6 @@
     mode: "0644"
   notify: Restart Fail2ban
 
-# test config Nginx
-#- name: Test nginx configuration
-#  ansible.builtin.command: nginx -t
-#  register: nginx_test
-#  changed_when: false
-#  failed_when: nginx_test.rc != 0
-
 # Restart si handlers ne pas marche
 - name: Ensure nginx is running
   ansible.builtin.service:
@@ -132,29 +159,3 @@
     name: fail2ban
     state: started
     enabled: true
-
-#- name: Installer Certbot
-#  apt:
-#    name:
-#      - certbot
-#      - python3-certbot-nginx
-#      - cron
-#    state: present
-#    update_cache: yes
-
-#- name: Obtenir certificat SSL pour Duck DNS
-#  command: >
-#    certbot --nginx --non-interactive --agree-tos 
-#    --register-unsafely-without-email
-#    -d ficus-redmine.duckdns.org
-#    -d ficus-prometheus.duckdns.org
-#    -d ficus-grafana.duckdns.org
-#  args:
-#    creates: /etc/letsencrypt/live/ficus-redmine.duckdns.org/fullchain.pem
-
-#- name: Configurer le renouvellement automatique
-#  cron:
-#    name: "Renouveler certificats Let's Encrypt"
-#    minute: "0"
-#    hour: "12"
-#    job: "certbot renew --quiet"

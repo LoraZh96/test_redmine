@@ -183,7 +183,8 @@ jobs:
       REDMINE_DB_PORT: ${{ secrets.REDMINE_DB_PORT }}
       REDMINE_DB_SSLMODE: ${{ secrets.REDMINE_DB_SSLMODE }}
       REDMINE_SECRET_KEY_BASE: ${{ secrets.REDMINE_SECRET_KEY_BASE }}
-
+      DYNHOST_USER: ${{ secrets.DYNHOST_USER }}
+      DYNHOST_PASSWORD: ${{ secrets.DYNHOST_PASSWORD }}
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v4
