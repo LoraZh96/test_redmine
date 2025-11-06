@@ -38,7 +38,7 @@
     - monitoring
 
 - name: Déployer Node Exporter sur tous les serveurs
-  hosts: all
+  hosts: all:!fck_nat
   become: yes
   roles:
     - node-exporter
@@ -48,3 +48,4 @@
   become: yes
   roles:
     - redmine-app
+
