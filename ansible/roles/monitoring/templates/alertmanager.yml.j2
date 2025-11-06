@@ -1,18 +1,43 @@
 global:
-  smtp_smarthost: 'smtp.gmail.com:587'
-  smtp_from: 'abdddlara@gmail.com'
-  smtp_auth_username: 'abdddlara@gmail.com'
-  smtp_auth_password: '{{ smtp_password }}'   # ← Ansible Vault
+  resolve_timeout: 1m
 
 route:
-  receiver: 'self'
+  receiver: 'telegram'
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 3h
 
 receivers:
-  - name: 'self'
-    email_configs:
-      - to: 'abdddlara@gmail.com'
+  - name: 'telegram'
+    telegram_configs:
+      - bot_token: '{{ telegram_bot_token }}'
+        chat_id: '{{ telegram_chat_id }}'
+        parse_mode: 'Markdown'
         send_resolved: true
+        message: |
+          global:
+  resolve_timeout: 1m
 
+route:
+  receiver: 'telegram'
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+receivers:
+  - name: 'telegram'
+    telegram_configs:
+      - bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"
+        chat_id: "{{ lookup('env', 'TELEGRAM_CHAT_ID') }}"
+        parse_mode: 'Markdown'
+        send_resolved: true
+        message: |
+          {% raw %}
+          *{{ .Status | toUpper }}*: {{ .CommonAnnotations.summary }}
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Instance:* {{ .Labels.instance }}
+          *Severity:* {{ .Labels.severity }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+          {% endraw %}
