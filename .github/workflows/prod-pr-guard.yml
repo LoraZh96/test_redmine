@@ -1,4 +1,4 @@
-name: Validate Prod PR
+name: Mise en prod
 
 on:
   pull_request:
@@ -18,49 +18,10 @@ jobs:
     permissions:
       pull-requests: read
     steps:
-      - name: Ensure head branch is main
-        id: check-branch
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const headBranch = context.payload.pull_request.head.ref
-            if (headBranch !== 'main') {
-              core.setFailed(`PR vers prod depuis ${headBranch}. Seules les fusions depuis main sont autorisées.`)
-            } else {
-              core.info('Head branch is main.')
-            }
-
-      - name: Ensure PR approved by a human reviewer
-        if: steps.check-branch.conclusion == 'success'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { owner, repo } = context.repo
-            const pull_number = context.payload.pull_request.number
-
-            const reviews = await github.paginate(
-              github.rest.pulls.listReviews,
-              { owner, repo, pull_number, per_page: 100 }
-            )
-
-            const finalStates = new Map()
-
-            for (const review of reviews) {
-              if (!review.user || review.user.type !== 'User' || review.user.login.endsWith('[bot]')) {
-                continue
-              }
-              finalStates.set(review.user.login, review.state)
-            }
-
-            const hasHumanApproval = Array.from(finalStates.values()).some((state) => state === 'APPROVED')
-
-            if (!hasHumanApproval) {
-              core.setFailed('Aucune approbation humaine active détectée pour cette PR.')
-            } else {
-              core.info('Au moins une approbation humaine est active.')
-            }
+      - name: Bloquer les merges directs vers prod
+        run: |
+          echo "Les merges vers prod doivent être effectués via le workflow GitHub 'Mise en prod'."
+          exit 1
 
   manual_merge:
     if: github.event_name == 'workflow_dispatch'
