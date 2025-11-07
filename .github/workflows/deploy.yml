@@ -246,4 +246,6 @@ jobs:
           REDMINE_DB_PORT: ${{ env.REDMINE_DB_PORT }}
           REDMINE_DB_SSLMODE: ${{ env.REDMINE_DB_SSLMODE }}
           REDMINE_SECRET_KEY_BASE: ${{ env.REDMINE_SECRET_KEY_BASE }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: ansible-playbook -i ansible/inventory.ini ansible/playbook_global.yml
