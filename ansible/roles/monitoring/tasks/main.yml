@@ -190,7 +190,7 @@
         return_content: yes
       register: grafana_dashboards
       loop:
-        - { id: 1860 }  # Node Exporter Full
+        - { id: 893 }  # Node Exporter Full
       retries: 3
       delay: 3
       when: grafana_health.status == 200
@@ -229,7 +229,7 @@
           }
         status_code: 200
       loop:
-        - { id: 1860 }
+        - { id: 893 }
       when: grafana_health.status == 200
       register: grafana_import
       retries: 5
