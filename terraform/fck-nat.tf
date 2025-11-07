@@ -22,33 +22,6 @@ data "aws_ami" "fck_nat" {
   }
 }
 
-# Security Group pour fck-nat
-resource "aws_security_group" "fck_nat" {
-  name        = "${var.project_name}-${var.environment}-fck-nat-sg"
-  description = "Security group for fck-nat instances"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "All traffic from private subnets"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["10.0.11.0/24", "10.0.12.0/24"] # Vos subnets privés
-  }
-
-  egress {
-    description = "All traffic to Internet"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-fck-nat-sg"
-  }
-}
-
 # IAM Role pour fck-nat
 resource "aws_iam_role" "fck_nat" {
   name = "${var.project_name}-${var.environment}-fck-nat-role"
@@ -103,7 +76,7 @@ resource "aws_instance" "fck_nat" {
   # CRITIQUE : Désactiver la vérification source/destination
   source_dest_check = false
 
-  vpc_security_group_ids = [aws_security_group.fck_nat.id]
+  vpc_security_group_ids = [aws_security_group.fck-nat-sg.id]
   iam_instance_profile   = aws_iam_instance_profile.fck_nat.name
   monitoring             = true
 

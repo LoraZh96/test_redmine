@@ -5,18 +5,26 @@ scrape_configs:
   - job_name: 'node_exporter'
     static_configs:
       - targets:
-          - '{{ terraform_outputs.bastion_ip.value }}:9100'
-          - '{{ terraform_outputs.proxy_ip.value }}:9100'
-          - '{{ terraform_outputs.manager_ip.value }}:9100'
-          - '{{ terraform_outputs.worker1_ip.value }}:9100'
-          - '{{ terraform_outputs.worker2_ip.value }}:9100'
-          - '{{ terraform_outputs.monitoring_ip.value }}:9100'
-          - '{{ terraform_outputs.facnet_ip.value }}:9100'
+          - '{{ hostvars['bastion'].private_ip }}:9100'
+          - '{{ hostvars['proxy'].private_ip }}:9100'
+          - '{{ hostvars['manager'].ansible_host }}:9100'
+          - '{{ hostvars['worker1'].ansible_host }}:9100'
+          - '{{ hostvars['worker2'].ansible_host }}:9100'
+          - '{{ hostvars['monitoring'].ansible_host }}:9100'
 
-  - job_name: 'cloudwatch_exporter'
+  - job_name: 'cadvisor'
+    metrics_path: /metrics
+    scheme: http
     static_configs:
+{% set cadvisor_hosts = (groups['manager'] | default([])) + (groups['workers'] | default([])) %}
+{% if cadvisor_hosts %}
       - targets:
-          - 'cloudwatch-exporter:9106'
+{% for host in cadvisor_hosts %}
+          - "{{ (hostvars[host].private_ip | default(hostvars[host].ansible_host)) }}:8080"
+{% endfor %}
+{% else %}
+      - targets: []
+{% endif %}
 
 alerting:
   alertmanagers:

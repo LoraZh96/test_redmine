@@ -1,5 +1,6 @@
 # --- ModSecurity v3 core configuration ---
-SecRuleEngine On
+# Mode détection seulement (plus rapide, logs mais ne bloque pas)
+SecRuleEngine DetectionOnly
 
 # Request/Response body access
 SecRequestBodyAccess On
@@ -8,19 +9,34 @@ SecResponseBodyLimit 524288
 SecRequestBodyLimit 20971520
 SecRequestBodyNoFilesLimit 1048576
 
-# Audit log
+# Audit log - Optimisé
 SecAuditEngine RelevantOnly
-SecAuditLogParts ABIJDEFHZ
+SecAuditLogParts ABCFHZ  # Moins de détails = plus rapide
 SecAuditLogType Serial
 SecAuditLog /var/log/modsecurity/audit.log
 SecAuditLogStorageDir /var/log/modsecurity/audit
 
-# Logs/Debug 
-SecDebugLogLevel 0
+# Logs/Debug - Seulement erreurs 4xx et 5xx
+SecAuditLogRelevantStatus "^(?:5|4(?!04))"
 # SecDebugLog /var/log/modsecurity/debug.log
 
-# Sensible defaults
+# Directories temporaires
+SecTmpDir /tmp/
+SecDataDir /tmp/
+
+# Sensible defaults - Optimisés
 SecPcreMatchLimit 100000
 SecPcreMatchLimitRecursion 100000
-SecRuleRemoveById 999999  # placeholder
 
+# Optimisations supplémentaires
+SecArgumentSeparator &
+SecCookieFormat 0
+SecStatusEngine On
+
+# Désactiver les règles les plus lourdes (optionnel - décommentez si encore lent)
+# SecRuleRemoveById 920350
+# SecRuleRemoveById 921180
+
+# Include OWASP CRS
+Include /etc/modsecurity/crs/crs-setup.conf
+Include /etc/modsecurity/crs/rules/*.conf

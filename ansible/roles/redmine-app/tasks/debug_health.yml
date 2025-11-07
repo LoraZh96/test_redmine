@@ -1,0 +1,10 @@
+---
+# Détail des tentatives de vérification HTTP lorsque la santé Redmine n'atteint
+# pas directement les codes attendus.
+
+- name: Afficher la dernière tentative HTTP Redmine
+  debug:
+    msg:
+      - "Redmine health check status: {{ redmine_health.get('status', 'unknown') }}"
+      - "Redmine health check response headers: {{ redmine_health.get('response_headers', {}) }}"
+      - "Redmine health check error: {{ redmine_health.get('msg', '') }}"

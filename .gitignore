@@ -1,5 +1,5 @@
 .env
-ansible/group_vars/bastion.yml
-ansible/group_vars/jump.yml
-ansible/inventory.ini
+/ansible/group_vars/bastion.yml
+/ansible/group_vars/jump.yml
+/ansible/inventory.ini
 app-repo
