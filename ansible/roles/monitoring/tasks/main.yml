@@ -190,7 +190,8 @@
         return_content: yes
       register: grafana_dashboards
       loop:
-        - { id: 14282 }  # Node Exporter Full
+        - { id: 1860 } # Node Exporter Full
+        - { id: 14282 }  # Docker and Container Monitoring (cAdvisor)
       retries: 3
       delay: 3
       when: grafana_health.status == 200
@@ -229,7 +230,8 @@
           }
         status_code: 200
       loop:
-        - { id: 14282 }
+        - { id: 1860 }
+        - { id: 14282 } 
       when: grafana_health.status == 200
       register: grafana_import
       retries: 5
