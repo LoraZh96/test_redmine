@@ -101,24 +101,7 @@
         dest: /opt/monitoring/docker-compose.yml
         mode: '0644'
       notify: restart monitoring stack
-
-    # CRÉATION DES SECRETS TELEGRAM POUR ALERTMANAGER
-    - name: Créer les secrets Docker Swarm pour Alertmanager (Telegram)
-      shell: |
-        SECRET_NAME="{{ item.name }}"
-        SECRET_VALUE="{{ item.value }}"
-        if ! docker secret ls --format '{{"{{.Name}}"}}' | grep -q "^${SECRET_NAME}$"; then
-          echo "${SECRET_VALUE}" | docker secret create ${SECRET_NAME} -
-        fi
-      loop:
-        - { name: "TELEGRAM_BOT_TOKEN", value: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) }}" }
-        - { name: "TELEGRAM_CHAT_ID",   value: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) }}" }
-      args:
-        executable: /bin/bash
-      no_log: true
-      when:
-        - lookup('env', 'TELEGRAM_BOT_TOKEN') | length > 0
-        - lookup('env', 'TELEGRAM_CHAT_ID') | length > 0  
+ 
 
     # GESTION DE LA STACK
     - name: Arrêter la stack existante si config modifiée
@@ -133,10 +116,6 @@
       args:
         chdir: /opt/monitoring
       register: compose_up
-
-   # - name: Afficher le résultat du démarrage
-     # debug:
-       # var: compose_up.stdout_lines
 
     # VÉRIFICATIONS
     - name: Attendre le démarrage des conteneurs
