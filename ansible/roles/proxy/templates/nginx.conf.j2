@@ -49,122 +49,122 @@ http {
 {% endif %}
     }
 
-    # --- Reverse Proxy vers Redmine ---
-    
-#    server {
-#        listen 80;
- #       server_name {{ subdomains.redmine }};
-  #      return 301 https://$server_name$request_uri;
-   # }
+    {# --- Reverse Proxy vers Redmine ---
+    server {
+        listen 80;
+        server_name {{ subdomains.redmine }};
+        return 301 https://$server_name$request_uri;
+    }
 
-#    server {
-#        listen 443 ssl;
-#        http2 on;
-#        server_name {{ subdomains.redmine }};
+    server {
+        listen 443 ssl;
+        http2 on;
+        server_name {{ subdomains.redmine }};
 
-#        ssl_certificate /etc/letsencrypt/live/{{ subdomains.redmine }}/fullchain.pem;
-#        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.redmine }}/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/{{ subdomains.redmine }}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.redmine }}/privkey.pem;
 
-#        access_log /var/log/nginx/redmine_access.log;
-#        error_log  /var/log/nginx/redmine_error.log;
+        access_log /var/log/nginx/redmine_access.log;
+        error_log  /var/log/nginx/redmine_error.log;
 
-#        location /health {
-#            access_log off;
-#            return 200 'Redmine OK';
-#            add_header Content-Type text/plain;
-#        }
+        location /health {
+            access_log off;
+            return 200 'Redmine OK';
+            add_header Content-Type text/plain;
+        }
 
-        #location / {
-          #  proxy_pass http://redmine_upstream;
-         #   proxy_set_header Host $host;
-        #    proxy_set_header X-Real-IP $remote_addr;
-       #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      #      proxy_set_header X-Forwarded-Proto https;
-     #       proxy_redirect off;
-    #        
-   #         proxy_read_timeout 90;
-  #          proxy_connect_timeout 30;
- #           proxy_next_upstream error timeout http_502 http_503;
- #       }
-#    }
+        location / {
+            proxy_pass http://redmine_upstream;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_redirect off;
 
-    # --- Reverse Proxy vers Prometheus ---
+            proxy_read_timeout 90;
+            proxy_connect_timeout 30;
+            proxy_next_upstream error timeout http_502 http_503;
+        }
+    }
+    #}
 
-#    server {
-#        listen 80;
-#        server_name {{ subdomains.prometheus }};
-#        return 301 https://$server_name$request_uri;
-#    }
+    {# --- Reverse Proxy vers Prometheus ---
+    server {
+        listen 80;
+        server_name {{ subdomains.prometheus }};
+        return 301 https://$server_name$request_uri;
+    }
 
-#    server {
-#        listen 443 ssl;
-#        http2 on;
-#        server_name {{ subdomains.prometheus }};
+    server {
+        listen 443 ssl;
+        http2 on;
+        server_name {{ subdomains.prometheus }};
 
-#        ssl_certificate /etc/letsencrypt/live/{{ subdomains.prometheus }}/fullchain.pem;
-#        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.prometheus }}/privkey.pem;
-#
-#        access_log /var/log/nginx/prometheus_access.log;
-#        error_log  /var/log/nginx/prometheus_error.log;
+        ssl_certificate /etc/letsencrypt/live/{{ subdomains.prometheus }}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.prometheus }}/privkey.pem;
 
-#        location / {
-#            proxy_pass http://{{ hostvars['monitoring'].ansible_host }}:9090;
-#            proxy_set_header Host $host;
-#            proxy_set_header X-Real-IP $remote_addr;
-#            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#            proxy_set_header X-Forwarded-Proto https;
-#        }
-#    }
+        access_log /var/log/nginx/prometheus_access.log;
+        error_log  /var/log/nginx/prometheus_error.log;
 
-    # --- Reverse Proxy vers Grafana ---
+        location / {
+            proxy_pass http://{{ hostvars['monitoring'].ansible_host }}:9090;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+    }
+    #}
 
-#    server {
-#        listen 80;
-#        server_name {{ subdomains.grafana }};
-#        return 301 https://$server_name$request_uri;
-#    }
+    {# --- Reverse Proxy vers Grafana ---
+    server {
+        listen 80;
+        server_name {{ subdomains.grafana }};
+        return 301 https://$server_name$request_uri;
+    }
 
-#    server {
-#        listen 443 ssl;
-#        http2 on;
-#        server_name {{ subdomains.grafana }};
+    server {
+        listen 443 ssl;
+        http2 on;
+        server_name {{ subdomains.grafana }};
 
-#        ssl_certificate /etc/letsencrypt/live/{{ subdomains.grafana }}/fullchain.pem;
-#        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.grafana }}/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/{{ subdomains.grafana }}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.grafana }}/privkey.pem;
 
-#        access_log /var/log/nginx/grafana_access.log;
-#        error_log  /var/log/nginx/grafana_error.log;
+        access_log /var/log/nginx/grafana_access.log;
+        error_log  /var/log/nginx/grafana_error.log;
 
-#        location / {
-#            proxy_pass http://{{ hostvars['monitoring'].ansible_host }}:3000;
-#            proxy_set_header Host $host;
-#            proxy_set_header X-Real-IP $remote_addr;
-#            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#            proxy_set_header X-Forwarded-Proto https;
-            
- #           # WebSocket pour Grafana
- #           proxy_http_version 1.1;
- #           proxy_set_header Upgrade $http_upgrade;
- #           proxy_set_header Connection "upgrade";
-  #      }
-  #  }
+        location / {
+            proxy_pass http://{{ hostvars['monitoring'].ansible_host }}:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
 
-    # --- Reverse Proxy catch-all ---
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+    }
+    #}
 
- #   server {
- #       listen 80 default_server;
- #       server_name _;
-  #      return 444;
-  #  }
+    {# --- Reverse Proxy catch-all ---
+    server {
+        listen 80 default_server;
+        server_name _;
+        return 444;
+    }
 
-#    server {
-#        listen 443 ssl default_server;
-#        http2 on;
-#        server_name _;
+    server {
+        listen 443 ssl default_server;
+        http2 on;
+        server_name _;
 
-#        ssl_certificate /etc/letsencrypt/live/{{ subdomains.grafana }}/fullchain.pem;
-#        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.grafana }}/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/{{ subdomains.grafana }}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/{{ subdomains.grafana }}/privkey.pem;
 
-#        return 444;
-#    }
+        return 444;
+    }
+    #}
+
 }
