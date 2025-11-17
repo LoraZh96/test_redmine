@@ -8,42 +8,47 @@
       - git
       - curl
       - fail2ban
+      - certbot
+      - python3-certbot-nginx
+      - cron
     state: present
     update_cache: true
 
-- name: Créer le répertoire pour les certificats SSL
-  ansible.builtin.file:
-    path: /etc/nginx/ssl
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: Générer un certificat auto-signé pour ficus.ovh
-  ansible.builtin.command: >
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048
-    -keyout /etc/nginx/ssl/privkey.pem
-    -out /etc/nginx/ssl/fullchain.pem
-    -subj "/C=FR/ST=France/L=Paris/O=Ficus/CN=*.ficus.ovh"
-    -addext "subjectAltName=DNS:ficus.ovh,DNS:*.ficus.ovh"
-  args:
-    creates: /etc/nginx/ssl/fullchain.pem
-
-- name: Définir les permissions du certificat
-  ansible.builtin.file:
-    path: "{{ item }}"
-    owner: root
-    group: root
-    mode: "0644"
+# --- Génération des certificats avec Certbot ---
+- name: Vérifier si les certificats Let's Encrypt existent
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ item }}/fullchain.pem"
+  register: cert_check
   loop:
-    - /etc/nginx/ssl/fullchain.pem
-    - /etc/nginx/ssl/privkey.pem
+    - "{{ subdomains.redmine }}"
+    - "{{ subdomains.prometheus }}"
+    - "{{ subdomains.grafana }}"
+
+- name: Générer les certificats avec Certbot (si absents)
+  ansible.builtin.command: >
+    certbot --nginx
+    --non-interactive
+    --agree-tos
+    --email {{ ssl_admin_email }}
+    -d {{ item.item }}
+    --redirect
+  loop: "{{ cert_check.results }}"
+  when: not item.stat.exists
+  register: certbot_result
+
+- name: Configurer le renouvellement automatique des certificats
+  ansible.builtin.cron:
+    name: "Renouvellement certificats Let's Encrypt"
+    minute: "0"
+    hour: "3"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+    user: root
 
 - name: Définir SSL comme activé
   ansible.builtin.set_fact:
     ssl_enabled: true
 
-# --- COnfiguration Modsecurity et Waf ---
+# --- Configuration Modsecurity et Waf ---
 
 - name: Supprimer l'ancien dossier CRS s'il existe
   ansible.builtin.file:

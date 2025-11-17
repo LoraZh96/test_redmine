@@ -13,18 +13,18 @@
   roles:
     - bastion
 
-- import_playbook: playbooks/update_dns.yml
-  tags: [dns]
+#- import_playbook: playbooks/update_dns.yml
+#  tags: [dns]
 
-- name: Attendre la propagation DNS (90 secondes)
-  hosts: localhost
-  gather_facts: no
-  tasks:
-    - name: Pause pour propagation DNS
-      ansible.builtin.pause:
-        seconds: 90
-        prompt: "Attente de la propagation DNS..."
-  tags: [dns]
+#- name: Attendre la propagation DNS (90 secondes)
+ # hosts: localhost
+  #gather_facts: no
+  #tasks:
+   # - name: Pause pour propagation DNS
+    #  ansible.builtin.pause:
+     #   seconds: 90
+      #  prompt: "Attente de la propagation DNS..."
+  #tags: [dns]
 
 - name: Configurer le proxy (Nginx + WAF + Fail2ban)
   hosts: proxy
