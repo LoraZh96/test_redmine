@@ -284,8 +284,8 @@
 
     - name: Récupérer la configuration Telegram depuis l'environnement
       set_fact:
-        telegram_bot_token_env: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) }}"
-        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) }}"
+        telegram_bot_token_env: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | trim | regex_replace('\r','') | regex_replace('\n','') }}"
+        telegram_chat_id_env: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | trim | regex_replace('\r','') | regex_replace('\n','') }}"
       no_log: true
 
     - name: Envoyer un message de confirmation à Telegram
