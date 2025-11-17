@@ -23,153 +23,153 @@ permissions:
   contents: write
 
 jobs:
-  terraform:
-    if: ${{ github.event.inputs.run_terraform_destroy != 'true' }}
-    runs-on: ubuntu-latest
-    env:
-      TF_WORKDIR: terraform
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
-      TF_ORG: ${{ secrets.TF_ORG }}
-      TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
-      TF_VAR_db_username: ${{ secrets.REDMINE_DB_USERNAME }}
-      TF_VAR_redmine_db_password: ${{ secrets.REDMINE_DB_PASSWORD }}
-    steps:
-      - name: Checkout infrastructure repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #terraform:
+   # if: ${{ github.event.inputs.run_terraform_destroy != 'true' }}
+    #runs-on: ubuntu-latest
+    #env:
+     # TF_WORKDIR: terraform
+      #AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      #TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+      #TF_ORG: ${{ secrets.TF_ORG }}
+      #TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+      #TF_VAR_db_username: ${{ secrets.REDMINE_DB_USERNAME }}
+      #TF_VAR_redmine_db_password: ${{ secrets.REDMINE_DB_PASSWORD }}
+    #steps:
+      #- name: Checkout infrastructure repository
+       # uses: actions/checkout@v4
+        #with:
+         # fetch-depth: 0
 
-      - name: Checkout application repository
-        uses: actions/checkout@v4
-        with:
-          repository: redmineproject/Redmine-Project
-          ref: main
-          token: ${{ secrets.APP_REPO_PAT }}
-          path: app-repo
+      #- name: Checkout application repository
+       # uses: actions/checkout@v4
+        #with:
+         # repository: redmineproject/Redmine-Project
+          #ref: main
+          #token: ${{ secrets.APP_REPO_PAT }}
+         # path: app-repo
 
-      - name: Prepare Redmine artifacts
-        run: |
-          set -euo pipefail
-          rm -rf ansible/redmine
-          mkdir -p ansible/redmine/docker
-          cp app-repo/deploy/docker-compose.yml ansible/redmine/docker-compose.yml
-          cp app-repo/Dockerfile ansible/redmine/Dockerfile
-          cp -r app-repo/docker/. ansible/redmine/docker/
+     # - name: Prepare Redmine artifacts
+      #  run: |
+       #   set -euo pipefail
+        #  rm -rf ansible/redmine
+         # mkdir -p ansible/redmine/docker
+          #cp app-repo/deploy/docker-compose.yml ansible/redmine/docker-compose.yml
+          #cp app-repo/Dockerfile ansible/redmine/Dockerfile
+          #cp -r app-repo/docker/. ansible/redmine/docker/
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7
+      #- name: Set up Terraform
+       # uses: hashicorp/setup-terraform@v2
+       # with:
+        #  terraform_version: 1.5.7
 
-      - name: Ensure Terraform Cloud secrets are set
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        env:
-          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
-          TF_ORG: ${{ secrets.TF_ORG }}
-          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
-        run: |
-          if [ -z "$TF_API_TOKEN" ] || [ -z "$TF_ORG" ] || [ -z "$TF_WORKSPACE" ]; then
-            echo "::error::Terraform Cloud requires TF_API_TOKEN, TF_ORG, and TF_WORKSPACE secrets." >&2
-            exit 1
-          fi
+      #- name: Ensure Terraform Cloud secrets are set
+       # if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+        #env:
+         # TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+         # TF_ORG: ${{ secrets.TF_ORG }}
+          #TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+        #run: |
+         # if [ -z "$TF_API_TOKEN" ] || [ -z "$TF_ORG" ] || [ -z "$TF_WORKSPACE" ]; then
+          #  echo "::error::Terraform Cloud requires TF_API_TOKEN, TF_ORG, and TF_WORKSPACE secrets." >&2
+           # exit 1
+          #fi
 
-      - name: Terraform fmt check
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        run: terraform fmt -check -recursive
-        working-directory: ${{ env.TF_WORKDIR }}
+      #- name: Terraform fmt check
+       # if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+       # run: terraform fmt -check -recursive
+        #working-directory: ${{ env.TF_WORKDIR }}
 
-      - name: Configure Terraform credentials
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        run: |
-          cat <<EOF > ~/.terraformrc
-          credentials "app.terraform.io" {
-            token = "${TF_API_TOKEN}"
-          }
-          EOF
+      #- name: Configure Terraform credentials
+       # if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+       # run: |
+        #  cat <<EOF > ~/.terraformrc
+         # credentials "app.terraform.io" {
+          #  token = "${TF_API_TOKEN}"
+         # }
+          #EOF
 
-      - name: Verify Terraform Cloud workspace
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        env:
-          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
-          TF_ORG: ${{ secrets.TF_ORG }}
-          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
-        run: |
-          set -euo pipefail
-          workspace_info=$(curl -fsSL \
-            -H "Authorization: Bearer ${TF_API_TOKEN}" \
-            -H "Content-Type: application/vnd.api+json" \
-            "https://app.terraform.io/api/v2/organizations/${TF_ORG}/workspaces/${TF_WORKSPACE}")
-          execution_mode=$(echo "$workspace_info" | jq -r '.data.attributes."execution-mode"')
-          if [ "$execution_mode" != "local" ]; then
-            echo "::error::Workspace ${TF_ORG}/${TF_WORKSPACE} execution mode is ${execution_mode}. Set it to 'Local' (CLI-driven)." >&2
-            exit 1
-          fi
+      #- name: Verify Terraform Cloud workspace
+       # if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+        #env:
+         # TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+         # TF_ORG: ${{ secrets.TF_ORG }}
+         # TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+       # run: |
+        #  set -euo pipefail
+         # workspace_info=$(curl -fsSL \
+         #   -H "Authorization: Bearer ${TF_API_TOKEN}" \
+          #  -H "Content-Type: application/vnd.api+json" \
+          #  "https://app.terraform.io/api/v2/organizations/${TF_ORG}/workspaces/${TF_WORKSPACE}")
+          #execution_mode=$(echo "$workspace_info" | jq -r '.data.attributes."execution-mode"')
+          #if [ "$execution_mode" != "local" ]; then
+           # echo "::error::Workspace ${TF_ORG}/${TF_WORKSPACE} execution mode is ${execution_mode}. Set it to 'Local' (CLI-driven)." >&2
+            #exit 1
+          #fi
 
-      - name: Write Terraform Cloud configuration
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        run: |
-          cat <<EOF > cloud.auto.tf
-          terraform {
-            cloud {
-              organization = "${TF_ORG}"
+    #  - name: Write Terraform Cloud configuration
+     #   if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+      #  run: |
+       #   cat <<EOF > cloud.auto.tf
+        #  terraform {
+         #   cloud {
+          #    organization = "${TF_ORG}"
 
-              workspaces {
-                name = "${TF_WORKSPACE}"
-              }
-            }
-          }
-          EOF
-          echo "Using Terraform Cloud backend: org=${TF_ORG}, workspace=${TF_WORKSPACE}"
-        working-directory: ${{ env.TF_WORKDIR }}
+           #   workspaces {
+            #    name = "${TF_WORKSPACE}"
+            #  }
+           # }
+         # }
+          #EOF
+          #echo "Using Terraform Cloud backend: org=${TF_ORG}, workspace=${TF_WORKSPACE}"
+        #working-directory: ${{ env.TF_WORKDIR }}
 
-      - name: Terraform init
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        run: terraform init -input=false
-        working-directory: ${{ env.TF_WORKDIR }}
+      #- name: Terraform init
+      #  if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+       # run: terraform init -input=false
+       # working-directory: ${{ env.TF_WORKDIR }}
 
-      - name: Terraform validate
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        run: terraform validate
-        working-directory: ${{ env.TF_WORKDIR }}
-        env:
-          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
+      #- name: Terraform validate
+       # if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+       # run: terraform validate
+       # working-directory: ${{ env.TF_WORKDIR }}
+       # env:
+       #   TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
-      - name: Terraform plan
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
-        run: terraform plan -input=false -out=tfplan
-        working-directory: ${{ env.TF_WORKDIR }}
-        env:
-          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
+      #- name: Terraform plan
+       # if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true' }}
+       # run: terraform plan -input=false -out=tfplan
+        #working-directory: ${{ env.TF_WORKDIR }}
+        #env:
+         # TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
-      - name: Terraform apply
-        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
-        run: terraform apply -input=false -auto-approve tfplan
-        working-directory: ${{ env.TF_WORKDIR }}
-        env:
-          TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
+     # - name: Terraform apply
+      #  if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+       # run: terraform apply -input=false -auto-approve tfplan
+        #working-directory: ${{ env.TF_WORKDIR }}
+        #env:
+         # TF_CLOUD_TOKEN: ${{ env.TF_API_TOKEN }}
 
-      - name: Pull Terraform state
-        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
-        run: terraform state pull > terraform.tfstate
-        working-directory: ${{ env.TF_WORKDIR }}
+     # - name: Pull Terraform state
+      #  if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+       # run: terraform state pull > terraform.tfstate
+        #working-directory: ${{ env.TF_WORKDIR }}
 
-      - name: Upload Terraform state artifact
-        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-state
-          path: |
-            terraform/terraform.tfstate
+      #- name: Upload Terraform state artifact
+       # if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+       # uses: actions/upload-artifact@v4
+       # with:
+        #  name: terraform-state
+         # path: |
+          #  terraform/terraform.tfstate
 
-      - name: Upload Ansible inventory artifact
-        if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ansible-inventory
-          path: ansible/inventory.ini
+      #- name: Upload Ansible inventory artifact
+       # if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.run_ansible_only != 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.run_terraform_apply != 'false') }}
+        #uses: actions/upload-artifact@v4
+        #with:
+         # name: ansible-inventory
+          #path: ansible/inventory.ini
 
   ansible:
     runs-on: ubuntu-latest
@@ -185,6 +185,8 @@ jobs:
       REDMINE_SECRET_KEY_BASE: ${{ secrets.REDMINE_SECRET_KEY_BASE }}
       DYNHOST_USER: ${{ secrets.DYNHOST_USER }}
       DYNHOST_PASSWORD: ${{ secrets.DYNHOST_PASSWORD }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v4
@@ -246,6 +248,6 @@ jobs:
           REDMINE_DB_PORT: ${{ env.REDMINE_DB_PORT }}
           REDMINE_DB_SSLMODE: ${{ env.REDMINE_DB_SSLMODE }}
           REDMINE_SECRET_KEY_BASE: ${{ env.REDMINE_SECRET_KEY_BASE }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ env.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ env.TELEGRAM_CHAT_ID }} 
         run: ansible-playbook -i ansible/inventory.ini ansible/playbook_global.yml

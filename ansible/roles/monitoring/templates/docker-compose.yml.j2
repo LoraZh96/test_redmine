@@ -44,9 +44,9 @@ services:
     container_name: alertmanager
     ports:
       - "0.0.0.0:9093:9093"
-    environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    secrets:
+      - TELEGRAM_BOT_TOKEN
+      - TELEGRAM_CHAT_ID
     volumes:
       - /opt/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     networks:
