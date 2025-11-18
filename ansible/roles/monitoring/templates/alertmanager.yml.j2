@@ -16,7 +16,7 @@ receivers:
   - name: 'telegram'
     telegram_configs:
       - bot_token: '{{ telegram_bot_token }}'
-        chat_id: '{{ telegram_chat_id }}'
+        chat_id: {{ telegram_chat_id }}
         parse_mode: 'Markdown'
         send_resolved: true
         message: |
