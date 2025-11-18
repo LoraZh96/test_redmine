@@ -40,7 +40,7 @@ services:
       - monitor_net
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.28.0
     container_name: alertmanager
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
