@@ -1,5 +1,5 @@
-{% set telegram_bot_token = lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) %}
-{% set telegram_chat_id = lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) %}
+{% set telegram_bot_token = lookup('env', 'TELEGRAM_BOT_TOKEN') | default('', true) | trim %}
+{% set telegram_chat_id = lookup('env', 'TELEGRAM_CHAT_ID') | default('', true) | trim %}
 {% set telegram_enabled = telegram_bot_token | length > 0 and telegram_chat_id | length > 0 %}
 
 global:
@@ -15,8 +15,8 @@ receivers:
 {% if telegram_enabled %}
   - name: 'telegram'
     telegram_configs:
-      - bot_token: "${TELEGRAM_BOT_TOKEN}"
-        chat_id: "${TELEGRAM_CHAT_ID}"
+      - bot_token: '{{ telegram_bot_token }}'
+        chat_id: '{{ telegram_chat_id }}'
         parse_mode: 'Markdown'
         send_resolved: true
         message: |

@@ -45,8 +45,8 @@ services:
     ports:
       - "0.0.0.0:9093:9093"
     environment:
-    - TELEGRAM_BOT_TOKEN={{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}
-    - TELEGRAM_CHAT_ID={{ lookup('env', 'TELEGRAM_CHAT_ID') }}
+      TELEGRAM_BOT_TOKEN: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') | trim }}"
+      TELEGRAM_CHAT_ID: "{{ lookup('env', 'TELEGRAM_CHAT_ID') | trim }}"
     volumes:
       - /opt/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     networks:
